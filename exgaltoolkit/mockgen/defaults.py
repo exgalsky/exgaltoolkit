@@ -1,0 +1,15 @@
+ID       = "MockgenDefaultID"
+seed     = 13579
+N        = 512
+Niter    = 1
+input    = "delta"
+Lbox     = 7700.
+Nside    = 1024
+nlpt     = 2
+laststep = "all"
+icw      = False
+gpu      = True
+mpi      = True
+omegam   = 0.31
+h        = 0.68
+zInit    = 50
