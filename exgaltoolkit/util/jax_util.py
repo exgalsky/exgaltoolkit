@@ -1,4 +1,4 @@
-from xgutil.log_util import parprint
+from exgaltoolkit.xgutil.log_util import parprint
 # Copied from TOAST
 def jax_local_device():
     import jax

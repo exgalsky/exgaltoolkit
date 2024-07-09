@@ -3,7 +3,8 @@ import sys
 import os
 import gc
 
-import xgmutil as mu
+import exgaltoolkit.mathutil as mu
+import exgaltoolkit.util as u
 
 import jax.numpy as jnp 
 import jax.random as rnd

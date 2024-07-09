@@ -1,11 +1,11 @@
 import sys
 import os
 import logging
-import mockgen
-import mockgen.defaults as mgd
-import xgcosmo.cosmology as xgc
-import xgutil.log_util as xglogutil
-import xgutil.backend  as xgback
+from  exgaltoolkit import mockgen
+import exgaltoolkit.mockgen.defaults as mgd
+import exgaltoolkit.util.ext_interface as xgc
+import exgaltoolkit.util.log_util as xglogutil
+import exgaltoolkit.util.backend  as xgback
 
 class Sky:
     '''Sky'''

@@ -1,8 +1,8 @@
 def main():
-    import xgutil.log_util as xglogutil
+    import exgaltoolkit.util.log_util as xglogutil
 
-    import mockgen
-    import mockgen.defaults as mgd
+    import exgaltoolkit.mockgen
+    import exgaltoolkit.mockgen.defaults as mgd
     import sys
     import argparse
 
