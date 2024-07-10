@@ -3,12 +3,19 @@ import numpy as np
 
 class ICs:
     '''ICs'''
-    def __init__(self, sky, cosmo, cube, format='nyx', fname='testics'):
+#    def __init__(self, sky, cosmo, cube, format='nyx', fname='testics'):
+    def __init__(self, sky, cube, za, d1ofz, d2ofz, Hofz, omegam, h, format='nyx', fname='testics'):
         self.sky    = sky
-        self.cosmo  = cosmo
         self.cube   = cube
+#        self.cosmo  = cosmo
         self.format = format
         self.fname  = fname
+        self.za     = za
+        self.d1ofz  = d1ofz
+        self.d2ofz  = d2ofz
+        self.Hofz   = Hofz
+        self.omegam = omegam
+        self.h      = h
 
     def writenyx(self,x,y,z,vx,vy,vz,mass):
 
@@ -56,11 +63,12 @@ class ICs:
         fid.close()
 
     def writeics(self):
-        cosmo = self.cosmo
         sky  = self.sky
 
-        h      = cosmo.params['h']
-        omegam = cosmo.params['Omega_m']
+#        h      = cosmo.params['h']
+#        omegam = cosmo.params['Omega_m']
+        h      = self.h
+        omegam = self.omegam
 
         rho   = 2.775e11 * omegam * h**2
         N     = sky.N
@@ -72,29 +80,35 @@ class ICs:
 
         H = 100 * h * jnp.sqrt(omegam*(1+z)**3+1-omegam) # flat universe with negligible radiation
 
-        print("Cosmology parameters of interest:")
-        print("h = ", cosmo.params['h'])
-        print("Omega_m = ", cosmo.params['Omega_m'])
-        print("Omega_b = ", cosmo.params['Omega_b'])
-        print("YHe = ", cosmo.params['YHe'])
-        print("z_init = ", sky.zInit)
+#        print("Cosmology parameters of interest:")
+#        print("h = ", cosmo.params['h'])
+#        print("Omega_m = ", cosmo.params['Omega_m'])
+#        print("Omega_b = ", cosmo.params['Omega_b'])
+#        print("YHe = ", cosmo.params['YHe'])
+#        print("z_init = ", sky.zInit)
 
         # LPT position is
-        #   x(q) = q + D * S^(1) + b0 * D**2 * S^(2)
-        # with
-        #   b0 := 3/7 * Omegam_m^(-1/143)
+        #   x(q) = q + D1 * S^(1) + D2 * S^(2)
+        # Approximation from Carroll et al. 1992:
+        #   D2 = 3/7 * Omegam_m^(-1/143) * D1**2
         # and peculiar velocity is
         #   v(q) = a * dx/dt
-        #        = a * [ dD/dt * S^(1) + 2 * b0 * D * dD/dt * S^(2) ]
+        #        = a * [ dD1/dt * S^(1) + dD2/dt * S^(2) ]
         #        = a * dD/dt * [ S^(1) + 2 * b0 * D * S^(2) ]
-        #        = a * f * H * [ S^(1) + 2 * b0 * D * S^(2) ]
+        #        = a * H * [ f1 * S^(1) + f2 * S^(2) ]
         # where
-        #   f := dlnD/dlna (= 1 for z>>1) 
+        #   f1 := dlnD1/dlna (= 1 for z>>1) 
+        #   f2 := dlnD2/dlna 
 
-        f = 1 # note we are assuming z>>1 here for the ICs!!!
+        # f = 1 # note we WERE assuming z>>1 here for the ICs, and D2 \propto D1^2, so only f=f1 mattered !!!
 
-        D  = cosmo.growth_factor_D(z)
-        b0 = 3/7 * omegam**(-1/143)
+#        D  = cosmo.growth_factor_D(z)
+#        b0 = 3/7 * omegam**(-1/143)
+
+        # tbd interpolate D1 and D2 to the redshift z
+        D1 = jnp.interp(z,self.za,self.D1ofz)
+        D2 = jnp.interp(z,self.za,self.D2ofz)
+        H  = jnp.interp(z,self.za,self.Hofz)
 
         mass = rho * Lbox**3 / N**3
         if self.sky.mpiproc == 0:
@@ -116,13 +130,21 @@ class ICs:
 
         qx, qy, qz = jnp.meshgrid(q1d,q1dy,q1d,indexing='ij')
 
-        x =  qx + D * self.cube.s1x + b0 * D**2 * self.cube.s2x
-        y =  qy + D * self.cube.s1y + b0 * D**2 * self.cube.s2y
-        z =  qz + D * self.cube.s1z + b0 * D**2 * self.cube.s2z
+#        x =  qx + D * self.cube.s1x + b0 * D**2 * self.cube.s2x
+#        y =  qy + D * self.cube.s1y + b0 * D**2 * self.cube.s2y
+#        z =  qz + D * self.cube.s1z + b0 * D**2 * self.cube.s2z
 
-        vx = a * f * H * (self.cube.s1x + 2 * b0 * D * self.cube.s2x)
-        vy = a * f * H * (self.cube.s1y + 2 * b0 * D * self.cube.s2y)
-        vz = a * f * H * (self.cube.s1z + 2 * b0 * D * self.cube.s2z)
+#        vx = a * f * H * (self.cube.s1x + 2 * b0 * D * self.cube.s2x)
+#        vy = a * f * H * (self.cube.s1y + 2 * b0 * D * self.cube.s2y)
+#        vz = a * f * H * (self.cube.s1z + 2 * b0 * D * self.cube.s2z)
+
+        x =  qx + D1 * self.cube.s1x + D2 * self.cube.s2x
+        y =  qy + D1 * self.cube.s1y + D2 * self.cube.s2y
+        z =  qz + D1 * self.cube.s1z + D2 * self.cube.s2z
+
+        vx = a * H * (f1 * self.cube.s1x + f2 * D2 * self.cube.s2x)
+        vy = a * H * (f1 * self.cube.s1y + f2 * D2 * self.cube.s2y)
+        vz = a * H * (f1 * self.cube.s1z + f2 * D2 * self.cube.s2z)
 
         if self.format == 'nyx':
             self.writenyx(x,y,z,vx,vy,vz,mass)
