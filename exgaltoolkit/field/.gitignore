@@ -1,5 +1,0 @@
-*.fits
-__pycache__
-displacement.py 
-test_slicing.py 
-testslicing.txt

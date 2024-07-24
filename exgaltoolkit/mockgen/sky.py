@@ -78,7 +78,6 @@ class Sky:
 
         import jax
         import exgaltoolkit.lpt as lpt
-        from xgfield import fieldsky
         jax.config.update("jax_enable_x64", True)
 
         import logging
@@ -124,21 +123,6 @@ class Sky:
 
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
-
-        #### GENERATE MOCK SKY DATA
-        lptsky = fieldsky.FieldSky(ID = self.ID+'_'+str(seed),
-                                   N  = self.N,
-                                 Lbox = self.Lbox,
-                                Nside = self.Nside,
-                                 nlpt = self.nlpt,
-                                input = "cube",
-                                  gpu = self.gpu,
-                                  mpi = self.mpi,
-                                 cube = cube,
-                                 cwsp = cosmo)
-
-        lptsky.generate()
-        times = xglogutil.profiletime(None, 'field mapping', times, self.comm, self.mpiproc)
 
         return 0
 
