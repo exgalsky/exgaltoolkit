@@ -1,8 +1,7 @@
 def main():
     import exgaltoolkit.util.log_util as xglogutil
 
-    import exgaltoolkit.mockgen
-    import exgaltoolkit.mockgen.defaults as mgd
+    from . import defaults as mgd
     import sys
     import argparse
 

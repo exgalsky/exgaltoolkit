@@ -39,6 +39,14 @@ endif
 py3_dep = py3.dependency()
 
 py_sources = [
+    'exgaltoolkit/__init__.py',
+    'exgaltoolkit/field/__init__.py',
+    'exgaltoolkit/field/command_line_interface.py',
+    'exgaltoolkit/field/defaults.py',
+    'exgaltoolkit/field/jax_healpix.py',
+    'exgaltoolkit/field/kernel_lib.py',
+    'exgaltoolkit/field/libfield.py',
+    'exgaltoolkit/field/fieldsky.py',
     'exgaltoolkit/lpt/__init__.py',
     'exgaltoolkit/lpt/cube.py',
     'exgaltoolkit/lpt/multihost_rfft.py',

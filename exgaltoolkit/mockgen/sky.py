@@ -1,8 +1,8 @@
 import sys
 import os
 import logging
-from  exgaltoolkit import mockgen
-import exgaltoolkit.mockgen.defaults as mgd
+from .ics import ICs
+from . import defaults as mgd
 import exgaltoolkit.util.ext_interface as xgc
 import exgaltoolkit.util.log_util as xglogutil
 import exgaltoolkit.util.backend  as xgback
@@ -48,7 +48,7 @@ class Sky:
 
     def run(self, **kwargs):
         import jax
-        import lpt
+        import exgaltoolkit.lpt as lpt
         from time import time
         times={'t0' : time()}
 
@@ -77,7 +77,7 @@ class Sky:
         import datetime
 
         import jax
-        import lpt
+        import exgaltoolkit.lpt as lpt
         from xgfield import fieldsky
         jax.config.update("jax_enable_x64", True)
 
@@ -116,7 +116,7 @@ class Sky:
 
         #### WRITE INITIAL CONDITIONS
         if self.icw:
-            ics = mockgen.ICs(self,cosmo,cube,fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc))
+            ics = ICs(self,cosmo,cube,fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc))
             ics.writeics()
             times = xglogutil.profiletime(None, 'write ICs', times, self.comm, self.mpiproc)
         if self.laststep == 'writeics':
