@@ -113,8 +113,8 @@ class Sky:
 #            ics = ICs(self,cosmo,cube,fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc))
             omegam, h = self.get_background_cosmo()
             za, d1ofz, d2ofz, Hofz = self.get_dynamics_arrays()
-            fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc))
-            ics = mockgen.ICs(self,cube, za, d1ofz, d2ofz, Hofz, omegam, h,fname=fname)
+            fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc)
+            ics = ICs(self,cube, za, d1ofz, d2ofz, Hofz, omegam, h,fname=fname)
             ics.writeics()
             times = xglogutil.profiletime(None, 'write ICs', times, self.comm, self.mpiproc)
         if self.laststep == 'writeics':
