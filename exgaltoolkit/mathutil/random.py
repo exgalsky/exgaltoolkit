@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import jax.random as rdm 
 import jax
 
-import exgaltoolkit.xgmutil.stream as stream
+from . import stream
 
 cmb_dict = {'cmb_tlm': 0, 'cmb_elm': 1, 'cmb_blm': 2}
 lens_dict = {'phi_lm': 3}

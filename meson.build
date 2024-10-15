@@ -39,25 +39,14 @@ endif
 py3_dep = py3.dependency()
 
 py_sources = [
-    'exgaltoolkit/lpt/__init__.py',
-    'exgaltoolkit/lpt/cube.py',
-    'exgaltoolkit/lpt/multihost_rfft.py',
-    'exgaltoolkit/mathutil/__init__.py',
-    'exgaltoolkit/mathutil/random.py',
-    'exgaltoolkit/mathutil/stream.py',
-    'exgaltoolkit/util/__init__.py',
-    'exgaltoolkit/util/ext_interface.py',
-    'exgaltoolkit/util/log_util.py',
-    'exgaltoolkit/util/jax_util.py',
-    'exgaltoolkit/util/backend.py',
-    'exgaltoolkit/util/mpi_util.py',
-    'exgaltoolkit/mockgen/__init__.py',
-    'exgaltoolkit/mockgen/command_line_interface.py',
-    'exgaltoolkit/mockgen/defaults.py',
-    'exgaltoolkit/mockgen/sky.py',
-    'exgaltoolkit/mockgen/ics.py'
+    'exgaltoolkit/__init__.py',
 ]
 
 py3.install_sources(py_sources,
   subdir: 'exgaltoolkit',
 )
+
+subdir('exgaltoolkit/util')
+subdir('exgaltoolkit/mathutil')
+subdir('exgaltoolkit/lpt')
+subdir('exgaltoolkit/mockgen')

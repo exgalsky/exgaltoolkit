@@ -1,5 +1,5 @@
 import logging
-from xgutil.log_util import parprint
+from .log_util import parprint
 
 uSky_WARN_level = logging.WARN + 7
 uSky_INFO_level = logging.WARN + 5
@@ -10,9 +10,9 @@ class Backend:
     def __init__(self, logging_level=1, force_no_mpi=False, force_no_gpu=False):
 
         import numpy as np
-        import xgutil.mpi_util as mutl
-        import xgutil.jax_util as jutl
-        import xgutil.log_util as lutl
+        from . import mpi_util as mutl
+        from . import jax_util as jutl
+        from . import log_util as lutl
 
         lutl.addLoggingLevel('lptmap_WARNING', uSky_WARN_level, methodName='usky_warn')
         lutl.addLoggingLevel('lptmap_INFO', uSky_INFO_level, methodName='usky_info')
@@ -32,8 +32,8 @@ class Backend:
 
     def print2log(self, logger, message, *args, exception_info=False, level='usky_warn', per_task=False):
 
-        import xgutil.jax_util as jutl
-        import xgutil.log_util as lutl
+        from . import jax_util as jutl
+        from . import log_util as lutl
 
         if per_task:
             message = f"MPI ProcID: { self.mpi_backend.id }, JAX device: { jutl.jax_local_device() }, { message } "
