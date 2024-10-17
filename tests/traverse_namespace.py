@@ -3,6 +3,8 @@ import pkgutil
 from importlib import import_module
 import inspect
 
+excluded = ["mpi"]
+
 def get_submodules(package_name):
      """Gets a list of submodules for the given package."""
  
@@ -11,7 +13,9 @@ def get_submodules(package_name):
  
      for _, module_name, is_pkg in pkgutil.walk_packages(package.__path__, package.__name__ + '.'):
          if not is_pkg:  # Filter out packages (only include modules)
-             submodules.append(module_name)
+              for excluded_package in excluded:
+                   if excluded_package not in module_name:
+                        submodules.append(module_name)
  
      return submodules
 

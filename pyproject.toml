@@ -10,9 +10,9 @@ readme = 'README.md'
 requires-python = '>=3.10'
 dependencies = [
     "numpy",
-    "healpy",
     "jax",
-    "jaxlib"
+    "jaxlib",
+    "meson"
 ]
 license = {file = 'LICENSE.txt'}
 authors = [
