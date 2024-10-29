@@ -114,8 +114,8 @@ class ICs:
         if self.sky.mpiproc == 0:
             print(f"particle mass: {mass:.3e} Msun")
             print(f"Lbox:          {Lbox} Mpc")
-            print(f"growth factor: {D:.3e}")
-            print(f"LPT b0 factor: {b0:.3e}")
+            # print(f"growth factor: {D:.3e}")
+            # print(f"LPT b0 factor: {b0:.3e}")
 
         Dgrid = Lbox / N       # grid spacing in Mpc
 
