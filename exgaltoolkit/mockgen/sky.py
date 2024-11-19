@@ -2,6 +2,7 @@ import sys
 import os
 import logging
 from .ics import ICs
+from .cosmo import CosmologyInterface
 from . import defaults as mgd
 import exgaltoolkit.util.ext_interface as xgc
 import exgaltoolkit.util.log_util as xglogutil
@@ -34,6 +35,8 @@ class Sky:
         self.task_tag = "MPI process "+str(self.mpiproc)
 
         if MPI.COMM_WORLD.Get_size() > 1: self.parallel = True
+
+        self.cosmo = CosmologyInterface()
 
     def get_power_array(self):
         import numpy as np
@@ -68,7 +71,7 @@ class Sky:
         
         return err
 
-    def generatesky(self, seed, cube, times, **kwargs):
+    def generatesky(self, seed, cube, times, cosmo, **kwargs):
         from time import time
         import datetime
 
@@ -94,8 +97,8 @@ class Sky:
 
         #### NOISE CONVOLUTION TO OBTAIN DELTA
         backend = xgback.Backend(force_no_gpu=True,force_no_mpi=True,logging_level=-logging.ERROR)
-        pofk = self.get_power_array()
-        delta = cube.noise2delta(delta,pofk)
+        cosmo.get_pspec()
+        delta = cube.noise2delta(delta,cosmo)
         times = xglogutil.profiletime(None, 'noise convolution', times, self.comm, self.mpiproc)
         if self.laststep == 'convolution':
             return 0
@@ -111,10 +114,9 @@ class Sky:
         #### WRITE INITIAL CONDITIONS
         if self.icw:
 #            ics = ICs(self,cosmo,cube,fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc))
-            omegam, h = self.get_background_cosmo()
-            za, d1ofz, d2ofz, Hofz = self.get_dynamics_arrays()
+            cosmo.get_dynamics_arrays()
             fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc)
-            ics = ICs(self,cube, za, d1ofz, d2ofz, Hofz, omegam, h,fname=fname)
+            ics = ICs(self, cube, cosmo,fname=fname)
             ics.writeics()
             times = xglogutil.profiletime(None, 'write ICs', times, self.comm, self.mpiproc)
         if self.laststep == 'writeics':
