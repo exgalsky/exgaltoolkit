@@ -3,11 +3,10 @@ import numpy as np
 
 class ICs:
     '''ICs'''
-#    def __init__(self, sky, cosmo, cube, format='nyx', fname='testics'):
-    def __init__(self, sky, cube, za, d1ofz, d2ofz, Hofz, omegam, h, format='nyx', fname='testics'):
+    def __init__(self, sky, cube, cosmo, format='nyx', fname='testics'):
         self.sky    = sky
         self.cube   = cube
-#        self.cosmo  = cosmo
+        self.cosmo  = cosmo
         self.format = format
         self.fname  = fname
         self.za     = za
@@ -65,10 +64,8 @@ class ICs:
     def writeics(self):
         sky  = self.sky
 
-#        h      = cosmo.params['h']
-#        omegam = cosmo.params['Omega_m']
-        h      = self.h
-        omegam = self.omegam
+        h      = self.cosmo.h
+        omegam = self.cosmo.omegam
 
         rho   = 2.775e11 * omegam * h**2
         N     = sky.N

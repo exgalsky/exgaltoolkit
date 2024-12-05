@@ -154,15 +154,12 @@ class Cube:
             noise = self._generate_sharded_noise(N, noisetype, seed, nsub)
         return noise
 
-    def noise2delta(self, delta, power):
+    def noise2delta(self, delta, cosmo):
         import numpy as np
-        if not isinstance(power, (np.ndarray, jnp.ndarray)):
-            power = power()
+        power    = np.asarray([cosmo.pspec['k'],cosmo.pspec['pofk']])
         transfer = power
         p_whitenoise = (2*np.pi)**3/(self.d3k*self.N**3) # white noise power spectrum
         transfer[1] = (power[1] / p_whitenoise)**0.5 # transfer(k) = sqrt[P(k)/P_whitenoise]
-        if transfer.ndim != 2 : print('ERROR: Transfer function ndarray is not two dimensional')
-        if transfer.shape[0] != 2: print('ERROR: Transfer function ndarray is a two column array. More than two columns supplied.')
         transfer = jnp.asarray(transfer)
 
         return self._fft(

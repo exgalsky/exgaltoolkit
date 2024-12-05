@@ -3,7 +3,8 @@ py_sources = [
     'command_line_interface.py',
     'defaults.py',
     'sky.py',
-    'ics.py'
+    'ics.py',
+    'cosmo.py'
 ]
 
 py3.install_sources(py_sources, 
