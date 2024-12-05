@@ -21,12 +21,21 @@ def get_submodules(package_name):
 
 submod_list = get_submodules('exgaltoolkit')
 
+def walk_members(obj,indent="  "):
+    """Recursively get members of an object, including members of nested objects."""
+
+    members = inspect.getmembers(obj)
+
+    for name, value in members:
+        if (inspect.isclass(value) or inspect.isfunction(value)) and name != "__base__" and name != "__class__":
+            typestr=" (function)"
+            if inspect.isclass(value): typestr=" (class)"
+            print(indent+name+typestr)
+            walk_members(value,indent=indent+"  ")
+
+
 for submod in submod_list:
-    print(f"Checking exgaltoolkit submodule: {submod}")
+    print(f"\n{submod} (submodule)")
     submodule = import_module(submod)
 
-    for name, obj in inspect.getmembers(submodule):
-        if inspect.isclass(obj):
-            print(f"Found class: {name}")
-        if inspect.isfunction(obj):
-            print(f"Found function: {name}")
+    walk_members(submodule)

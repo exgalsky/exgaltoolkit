@@ -64,8 +64,8 @@ class ICs:
     def writeics(self):
         sky  = self.sky
 
-        h      = self.h
-        omegam = self.omegam
+        h      = self.cosmo.h
+        omegam = self.cosmo.omegam
 
         rho   = 2.775e11 * omegam * h**2
         N     = sky.N

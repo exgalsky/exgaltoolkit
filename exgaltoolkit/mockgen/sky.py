@@ -113,8 +113,7 @@ class Sky:
 
         #### WRITE INITIAL CONDITIONS
         if self.icw:
-#            ics = ICs(self,cosmo,cube,fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc))
-            cosmo.get_dynamics_arrays()
+            cosmo.get_growth()
             fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc)
             ics = ICs(self, cube, cosmo,fname=fname)
             ics.writeics()
