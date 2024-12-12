@@ -2,17 +2,22 @@ class CosmologyInterface:
     '''CosmologyInterface'''
     def __init__(self, **kwargs):
         self.h      = 0.7
-        self.omegam = 0.3
-        omegal = 1 - omegam
-        omegac = 1 - omegam - omegal
+        self.omegam = 0.276
+        self.omegak = 0.0
+        self.omegal = 1 - self.omegam - self.omegak
         return
 
     def get_pspec(self):
+        import numpy as np
         import jax.numpy as jnp
 
         # placeholder for power spectrum interface
-        k = jnp.logspace(-3,1,1000) # Mpc
-        self.pspec = {'k': k, 'pofk': pk}
+        from importlib.resources import files
+        pkfile = files("exgaltoolkit.data").joinpath("camb_40107036_matterpower.dat")
+        k, pk = np.loadtxt(pkfile,usecols=(0,1),unpack=True)
+        
+        # create dictionary wrapper for power spectrum
+        self.pspec = {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk)}
 
     def get_growth(self):
         import jax
@@ -22,7 +27,7 @@ class CosmologyInterface:
         z   = np.linspace(0,100,1000)
 
         # hubble parameter
-        Hofz = 100*h**2*jnp.sqrt(omegal + omegac*(1+z)**2 + omegam*(1+z)**3)
+        Hofz = 100*h**2*jnp.sqrt(omegal + omegak*(1+z)**2 + omegam*(1+z)**3)
 
         # linear growth factor using w=-1 fitting formulae from Carrol, Press & Turner (1992)
         w  = -1

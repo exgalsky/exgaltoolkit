@@ -38,13 +38,6 @@ class Sky:
 
         self.cosmo = CosmologyInterface()
 
-    def get_power_array(self):
-        import numpy as np
-        k = np.logspace(-3,1,1000) # Mpc
-        pk = k # NEED TO IMPLEMENT ACTUAL pk in 1/Mpc
-        result = np.asarray([k,pk])
-        return result
-
     def run(self, **kwargs):
         import jax
         import exgaltoolkit.lpt as lpt
@@ -71,7 +64,7 @@ class Sky:
         
         return err
 
-    def generatesky(self, seed, cube, times, cosmo, **kwargs):
+    def generatesky(self, seed, cube, times, **kwargs):
         from time import time
         import datetime
 
@@ -85,20 +78,21 @@ class Sky:
 
         if self.mpiproc == 0:
             xglogutil.parprint(f'\nGenerating sky for model "{self.ID}" with seed={seed}')
-
+            
         #### NOISE GENERATION
         delta = cube.generate_noise(seed=seed)
         times = xglogutil.profiletime(None, 'noise generation', times, self.comm, self.mpiproc)
         if self.laststep == 'noise':
             return 0
+        else:
 
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
         #### NOISE CONVOLUTION TO OBTAIN DELTA
         backend = xgback.Backend(force_no_gpu=True,force_no_mpi=True,logging_level=-logging.ERROR)
-        cosmo.get_pspec()
-        delta = cube.noise2delta(delta,cosmo)
+        self.cosmo.get_pspec()
+        delta = cube.noise2delta(delta,self.cosmo)
         times = xglogutil.profiletime(None, 'noise convolution', times, self.comm, self.mpiproc)
         if self.laststep == 'convolution':
             return 0
@@ -113,9 +107,9 @@ class Sky:
 
         #### WRITE INITIAL CONDITIONS
         if self.icw:
-            cosmo.get_growth()
+            self.cosmo.get_growth()
             fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc)
-            ics = ICs(self, cube, cosmo,fname=fname)
+            ics = ICs(self, cube, self.cosmo, fname=fname)
             ics.writeics()
             times = xglogutil.profiletime(None, 'write ICs', times, self.comm, self.mpiproc)
         if self.laststep == 'writeics':
