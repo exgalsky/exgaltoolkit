@@ -138,6 +138,8 @@ class ICs:
         x =  qx + D1 * self.cube.s1x + D2 * self.cube.s2x
         y =  qy + D1 * self.cube.s1y + D2 * self.cube.s2y
         z =  qz + D1 * self.cube.s1z + D2 * self.cube.s2z
+        
+# Note: f1 and f2 are not initialized from cosmo yet. There are growth factors missing in the velocity definition
 
         vx = a * H * (f1 * self.cube.s1x + f2 * D2 * self.cube.s2x)
         vy = a * H * (f1 * self.cube.s1y + f2 * D2 * self.cube.s2y)
