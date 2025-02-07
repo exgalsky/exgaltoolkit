@@ -92,7 +92,7 @@ class ICs:
         #   v(q) = a * dx/dt
         #        = a * [ dD1/dt * S^(1) + dD2/dt * S^(2) ]
         #        = a * dD/dt * [ S^(1) + 2 * b0 * D * S^(2) ]
-        #        = a * H * [ f1 * S^(1) + f2 * S^(2) ]
+        #        = a * H * [ f1 * D1 * S^(1) + f2 * D2 * S^(2) ]
         # where
         #   f1 := dlnD1/dlna (= 1 for z>>1) 
         #   f2 := dlnD2/dlna 
