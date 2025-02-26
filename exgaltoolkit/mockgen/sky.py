@@ -84,14 +84,13 @@ class Sky:
         times = xglogutil.profiletime(None, 'noise generation', times, self.comm, self.mpiproc)
         if self.laststep == 'noise':
             return 0
-        else:
 
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
         #### NOISE CONVOLUTION TO OBTAIN DELTA
         backend = xgback.Backend(force_no_gpu=True,force_no_mpi=True,logging_level=-logging.ERROR)
-        self.cosmo.get_pspec()
+        # self.cosmo.get_pspec()
         delta = cube.noise2delta(delta,self.cosmo)
         times = xglogutil.profiletime(None, 'noise convolution', times, self.comm, self.mpiproc)
         if self.laststep == 'convolution':
@@ -103,7 +102,9 @@ class Sky:
         #### LPT DISPLACEMENTS FROM DENSITY CONTRAST
         if self.nlpt > 0:
             cube.slpt(infield=self.input,delta=delta) # s1 and s2 in cube.[s1x,s1y,s1z,s2x,s2y,s2z]
-        times = xglogutil.profiletime(None, '2LPT', times, self.comm, self.mpiproc)
+        times = xglogutil.profiletime(None, 'LPT', times, self.comm, self.mpiproc)
+        if self.laststep == 'LPT':
+            return 0
 
         #### WRITE INITIAL CONDITIONS
         if self.icw:
