@@ -3,22 +3,24 @@
 import camb
 import numpy as np
 import jax.numpy as jnp
+import exgaltoolkit.lpt as lpt
+import exgaltoolkit.mockgen as mg
 
 zics=100
-camb_par = camb.set_params()
+camb_par = camb.set_params(H0=68)
 camb_par.set_matter_power(redshifts=[zics], kmax=2.0)
 camb_wsp = camb.get_results(camb_par)
 
 def my_get_pspec():
     k, zlist, pk = camb_wsp.get_matter_power_spectrum(
                   minkh=1e-4, maxkh=1e2, npoints = 2000)
-    return jnp.asarray(k), jnp.asarray(pk)
+    return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk)}
 
 # create Sky object
-mocksky = Sky(get_pspec=my_get_pspec)
+mocksky = mg.Sky(pspec=my_get_pspec(), N=768, seed=13579, Niter=1)
 
 # now write ICs
-mocksky.run(laststep='writeics')
+mocksky.run(laststep='noise')
 
 # THIS IS A SKETCH OF A POSSIBLE DEFAULT GET_PSPEC IMPLEMENTATION
 # class CosmologyInterface:
