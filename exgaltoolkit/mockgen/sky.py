@@ -91,7 +91,7 @@ class Sky:
         #### NOISE CONVOLUTION TO OBTAIN DELTA
         backend = xgback.Backend(force_no_gpu=True,force_no_mpi=True,logging_level=-logging.ERROR)
         # self.cosmo.get_pspec()
-        delta = cube.noise2delta(delta,self.cosmo)
+        delta = cube.noise2delta(delta, self.cosmo)
         times = xglogutil.profiletime(None, 'noise convolution', times, self.comm, self.mpiproc)
         if self.laststep == 'convolution':
             return 0

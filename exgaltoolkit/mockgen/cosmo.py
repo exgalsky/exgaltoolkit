@@ -63,11 +63,11 @@ class CosmologyInterface:
         D2 =  -3/7 * self.omegam**(-1/143) * D1**2
 
         # f derivatives by autograd of growth factors
-        D1ofa = lambda a: jnp.interp(a,1/(1+z),D1)
-        D2ofa = lambda a: jnp.interp(a,1/(1+z),D2)
+        D1ofa = lambda a: jnp.interp(a,1/(1+z), D1)
+        D2ofa = lambda a: jnp.interp(a,1/(1+z), D2)
 
-        f1ofz = lambda z: jax.grad(D1ofa)(1/(1+z)) / D1ofa(1/(1+z)) / (1+z)
-        f2ofz = lambda z: jax.grad(D2ofa)(1/(1+z)) / D2ofa(1/(1+z)) / (1+z)
+        f1ofz = jax.vmap(lambda z: jax.grad(D1ofa)(1/(1+z)) / D1ofa(1/(1+z)) / (1+z))
+        f2ofz = jax.vmap(lambda z: jax.grad(D2ofa)(1/(1+z)) / D2ofa(1/(1+z)) / (1+z))
 
         f1 = f1ofz(z)
         f2 = f2ofz(z)
