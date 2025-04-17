@@ -19,5 +19,17 @@ def my_get_pspec():
 # create Sky object
 mocksky = mg.Sky(pspec=my_get_pspec(), N=128, seed=13579, Niter=1, icw=True)
 
-# now write ICs
-mocksky.run(laststep='writeics')
+# now write delta
+mocksky.run(laststep='convolution')
+delta=np.asarray(mocksky.cube.delta)
+
+# create Sky object
+mocksky = mg.Sky(pspec=my_get_pspec(), N=128, seed=13579, Niter=1, icw=True)
+
+# now write s1x
+mocksky.run(laststep='LPT')
+np.savez("./output/grids",
+         delta=delta,
+         s1x=np.asarray(mocksky.cube.s1x),
+         s1y=np.asarray(mocksky.cube.s1y),
+         s1z=np.asarray(mocksky.cube.s1z))
