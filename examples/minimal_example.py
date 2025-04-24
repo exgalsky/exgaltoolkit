@@ -16,15 +16,18 @@ def my_get_pspec():
                   minkh=1e-4, maxkh=1e2, npoints = 2000)
     return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk)}
 
-# create Sky object
-mocksky = mg.Sky(pspec=my_get_pspec(), N=128, seed=13579, Niter=1, icw=True)
+# Create cosmology interface first
+cosmo = mg.CosmologyInterface(pspec=my_get_pspec())
+
+# create Sky object with the cosmology interface
+mocksky = mg.Sky(cosmo=cosmo, N=128, seed=13579, Niter=1, icw=True)
 
 # now write delta
 mocksky.run(laststep='convolution')
 delta=np.asarray(mocksky.cube.delta)
 
-# create Sky object
-mocksky = mg.Sky(pspec=my_get_pspec(), N=128, seed=13579, Niter=1, icw=True)
+# create another Sky object with the same cosmology interface
+mocksky = mg.Sky(cosmo=cosmo, N=128, seed=13579, Niter=1, icw=True)
 
 # now write s1x
 mocksky.run(laststep='LPT')

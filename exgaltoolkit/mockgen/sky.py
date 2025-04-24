@@ -36,7 +36,8 @@ class Sky:
 
         if MPI.COMM_WORLD.Get_size() > 1: self.parallel = True
 
-        self.cosmo = CosmologyInterface()
+        # Get cosmo from kwargs or create a default one if not provided
+        self.cosmo = kwargs.get('cosmo', CosmologyInterface())
         self.cube = None
 
     def run(self, **kwargs):
