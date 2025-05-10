@@ -5,6 +5,7 @@ import numpy as np
 import jax.numpy as jnp
 import exgaltoolkit.lpt as lpt
 import exgaltoolkit.mockgen as mg
+import exgaltoolkit.util.jax_util as ju
 
 zics=100
 camb_par = camb.set_params(H0=68)
@@ -14,7 +15,8 @@ camb_wsp = camb.get_results(camb_par)
 def my_get_pspec():
     k, zlist, pk = camb_wsp.get_matter_power_spectrum(
                   minkh=1e-4, maxkh=1e2, npoints = 2000)
-    return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk)}
+    ju.distributed_initialize()
+    return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk[0,:])}
 
 # Create cosmology interface first
 cosmo = mg.CosmologyInterface(pspec=my_get_pspec())

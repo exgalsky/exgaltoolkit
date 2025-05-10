@@ -7,6 +7,7 @@ from . import defaults as mgd
 import exgaltoolkit.util.ext_interface as xgc
 import exgaltoolkit.util.log_util as xglogutil
 import exgaltoolkit.util.backend  as xgback
+import exgaltoolkit.util.jax_util as ju
 
 class Sky:
     '''Sky'''
@@ -49,7 +50,7 @@ class Sky:
         if not self.parallel:
             self.cube = lpt.Cube(N=self.N,Lbox=self.Lbox,partype=None)
         else:
-            jax.distributed.initialize()
+            ju.distributed_initialize()
             self.cube = lpt.Cube(N=self.N,Lbox=self.Lbox)
         if self.laststep == 'init':
             return 0
