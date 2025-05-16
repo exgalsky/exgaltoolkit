@@ -15,7 +15,6 @@ camb_wsp = camb.get_results(camb_par)
 def my_get_pspec():
     k, zlist, pk = camb_wsp.get_matter_power_spectrum(
                   minkh=1e-4, maxkh=1e2, npoints = 2000)
-    ju.distributed_initialize()
     return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk[0,:])}
 
 # Create cosmology interface first

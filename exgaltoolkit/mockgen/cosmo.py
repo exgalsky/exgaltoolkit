@@ -1,7 +1,8 @@
+import exgaltoolkit.util.jax_util as ju
+
 def _get_default_pspec():
     import numpy as np
     import jax.numpy as jnp
-    import exgaltoolkit.util.jax_util as ju
 
     # default power spectrum interface
     from importlib.resources import files
@@ -9,7 +10,6 @@ def _get_default_pspec():
     k, pk = np.loadtxt(pkfile,usecols=(0,1),unpack=True)
 
     # create dictionary wrapper for power spectrum
-    ju.distributed_initialize()
     return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk)}
 
 class CosmologyInterface:
@@ -20,6 +20,8 @@ class CosmologyInterface:
         self.omegam = 0.276
         self.omegak = 0.0
         self.omegal = 1 - self.omegam - self.omegak
+        
+        if kwargs.get('parallel',False): ju.distributed_initialize()
 
         self.pspec = kwargs.get('pspec', _get_default_pspec())
         
