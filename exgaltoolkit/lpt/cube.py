@@ -32,6 +32,8 @@ class Cube:
         self.start = 0
         self.end   = self.N
 
+        self.delta = None
+
         # needed for running on CPU with a signle process
         self.ngpus   = 1        
         self.host_id = 0
@@ -147,14 +149,12 @@ class Cube:
 
         N = self.N
 
-        noise = None
         if self.partype is None:
-            noise = self._generate_serial_noise(N, noisetype, seed, nsub)
+            self.delta = self._generate_serial_noise(N, noisetype, seed, nsub)
         elif self.partype == 'jaxshard':
-            noise = self._generate_sharded_noise(N, noisetype, seed, nsub)
-        return noise
+            self.delta = self._generate_sharded_noise(N, noisetype, seed, nsub)
 
-    def noise2delta(self, delta, cosmo):
+    def noise2delta(self, cosmo):
         import numpy as np
         power    = np.asarray([cosmo.pspec['k'],cosmo.pspec['pofk']])
         transfer = power
@@ -162,11 +162,11 @@ class Cube:
         transfer[1] = (power[1] / p_whitenoise)**0.5 # transfer(k) = sqrt[P(k)/P_whitenoise]
         transfer = jnp.asarray(transfer)
 
-        return self._fft(
-                    self._apply_grid_transfer_function(self._fft(delta), transfer),
+        self.delta = self._fft(
+                    self._apply_grid_transfer_function(self._fft(self.delta), transfer),
                     direction='c2r')
 
-    def slpt(self, infield='noise', delta=None, mode='lean'):
+    def slpt(self, infield='noise', mode='lean'):
 
         if self.nlpt <= 0: return
 
@@ -207,18 +207,18 @@ class Cube:
 
         if infield == 'noise':
             # FT of delta from noise
-            delta = self._apply_grid_transfer_function(self._fft(delta))
+            delta = self._apply_grid_transfer_function(self._fft(self.delta))
         elif infield == 'delta':
             # FT of delta
-            delta = self._fft(delta)
+            delta = self._fft(self.delta)
         else:
             import numpy as np
             # delta from external file
             delta = jnp.asarray(np.fromfile(infield,dtype=jnp.float32,count=self.N*self.N*self.N))
             delta = jnp.reshape(delta,self.rshape)
-            delta = delta[:,self.start:self.end,:]
+            self.delta = delta[:,self.start:self.end,:]
             # FT of delta
-            delta = self._fft(delta)
+            delta = self._fft(self.delta)
     
         # Definitions used for LPT
         #   grad.S^(n) = - delta^(n)

@@ -7,6 +7,7 @@ from . import defaults as mgd
 import exgaltoolkit.util.ext_interface as xgc
 import exgaltoolkit.util.log_util as xglogutil
 import exgaltoolkit.util.backend  as xgback
+import exgaltoolkit.util.jax_util as ju
 
 class Sky:
     '''Sky'''
@@ -36,14 +37,9 @@ class Sky:
 
         if MPI.COMM_WORLD.Get_size() > 1: self.parallel = True
 
-        self.cosmo = CosmologyInterface()
-
-    def get_power_array(self):
-        import numpy as np
-        k = np.logspace(-3,1,1000) # Mpc
-        pk = k # NEED TO IMPLEMENT ACTUAL pk in 1/Mpc
-        result = np.asarray([k,pk])
-        return result
+        # Get cosmo from kwargs or create a default one if not provided
+        self.cosmo = kwargs.get('cosmo', CosmologyInterface())
+        self.cube = None
 
     def run(self, **kwargs):
         import jax
@@ -52,10 +48,10 @@ class Sky:
         times={'t0' : time()}
 
         if not self.parallel:
-            cube = lpt.Cube(N=self.N,Lbox=self.Lbox,partype=None)
+            self.cube = lpt.Cube(N=self.N,Lbox=self.Lbox,partype=None)
         else:
-            jax.distributed.initialize()
-            cube = lpt.Cube(N=self.N,Lbox=self.Lbox)
+            ju.distributed_initialize()
+            self.cube = lpt.Cube(N=self.N,Lbox=self.Lbox)
         if self.laststep == 'init':
             return 0
         
@@ -65,13 +61,13 @@ class Sky:
         for seed in seeds:
             if i==1:
                 times={'t0' : time()}
-            err += self.generatesky(seed,cube,times)
+            err += self.generatesky(seed,times)
             i += 1
         xglogutil.summarizetime(None,times,self.comm, self.mpiproc)
         
         return err
 
-    def generatesky(self, seed, cube, times, cosmo, **kwargs):
+    def generatesky(self, seed, times, **kwargs):
         from time import time
         import datetime
 
@@ -85,37 +81,39 @@ class Sky:
 
         if self.mpiproc == 0:
             xglogutil.parprint(f'\nGenerating sky for model "{self.ID}" with seed={seed}')
-
+            
         #### NOISE GENERATION
-        delta = cube.generate_noise(seed=seed)
+        self.cube.generate_noise(seed=seed)
         times = xglogutil.profiletime(None, 'noise generation', times, self.comm, self.mpiproc)
         if self.laststep == 'noise':
-            return 0
+            return
 
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
         #### NOISE CONVOLUTION TO OBTAIN DELTA
         backend = xgback.Backend(force_no_gpu=True,force_no_mpi=True,logging_level=-logging.ERROR)
-        cosmo.get_pspec()
-        delta = cube.noise2delta(delta,cosmo)
+        # self.cosmo.get_pspec()
+        self.cube.noise2delta(self.cosmo)
         times = xglogutil.profiletime(None, 'noise convolution', times, self.comm, self.mpiproc)
         if self.laststep == 'convolution':
-            return 0
+            return
 
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
                 
         #### LPT DISPLACEMENTS FROM DENSITY CONTRAST
         if self.nlpt > 0:
-            cube.slpt(infield=self.input,delta=delta) # s1 and s2 in cube.[s1x,s1y,s1z,s2x,s2y,s2z]
-        times = xglogutil.profiletime(None, '2LPT', times, self.comm, self.mpiproc)
+            self.cube.slpt(infield=self.input) # s1 and s2 in cube.[s1x,s1y,s1z,s2x,s2y,s2z]
+        times = xglogutil.profiletime(None, 'LPT', times, self.comm, self.mpiproc)
+        if self.laststep == 'LPT':
+            return
 
         #### WRITE INITIAL CONDITIONS
         if self.icw:
-            cosmo.get_growth()
+            self.cosmo.get_growth()
             fname=self.ID+'_'+str(seed)+'_Lbox-'+str(self.Lbox)+'_N-'+str(self.N)+'_proc-'+str(self.mpiproc)
-            ics = ICs(self, cube, cosmo,fname=fname)
+            ics = ICs(self, self.cube, self.cosmo, fname=fname)
             ics.writeics()
             times = xglogutil.profiletime(None, 'write ICs', times, self.comm, self.mpiproc)
         if self.laststep == 'writeics':

@@ -9,12 +9,19 @@ class ICs:
         self.cosmo  = cosmo
         self.format = format
         self.fname  = fname
-        self.za     = za
-        self.d1ofz  = d1ofz
-        self.d2ofz  = d2ofz
-        self.Hofz   = Hofz
-        self.omegam = omegam
-        self.h      = h
+        
+        self.omegam = self.cosmo.omegam
+        self.h      = self.cosmo.h
+      
+        # print(self.cosmo.growth.shape)
+
+        self.za     = self.cosmo.growth[0]
+        self.Hofz   = self.cosmo.growth[1]
+        self.d1ofz  = self.cosmo.growth[2]
+        self.d2ofz  = self.cosmo.growth[3]
+        self.f1ofz  = self.cosmo.growth[4]
+        self.f2ofz  = self.cosmo.growth[5]
+        
 
     def writenyx(self,x,y,z,vx,vy,vz,mass):
 
@@ -92,7 +99,7 @@ class ICs:
         #   v(q) = a * dx/dt
         #        = a * [ dD1/dt * S^(1) + dD2/dt * S^(2) ]
         #        = a * dD/dt * [ S^(1) + 2 * b0 * D * S^(2) ]
-        #        = a * H * [ f1 * S^(1) + f2 * S^(2) ]
+        #        = a * H * [ f1 * D1 * S^(1) + f2 * D2 * S^(2) ]
         # where
         #   f1 := dlnD1/dlna (= 1 for z>>1) 
         #   f2 := dlnD2/dlna 
@@ -103,9 +110,15 @@ class ICs:
 #        b0 = 3/7 * omegam**(-1/143)
 
         # tbd interpolate D1 and D2 to the redshift z
-        D1 = jnp.interp(z,self.za,self.D1ofz)
-        D2 = jnp.interp(z,self.za,self.D2ofz)
+        D1 = jnp.interp(z,self.za,self.d1ofz)
+        D2 = jnp.interp(z,self.za,self.d2ofz)
         H  = jnp.interp(z,self.za,self.Hofz)
+        
+        f1 = jnp.interp(z,self.za,self.f1ofz)
+        f2 = jnp.interp(z,self.za,self.f2ofz)
+
+        # f1 = 1.0
+        # f2 = 1.0
 
         mass = rho * Lbox**3 / N**3
         if self.sky.mpiproc == 0:
@@ -138,12 +151,12 @@ class ICs:
         x =  qx + D1 * self.cube.s1x + D2 * self.cube.s2x
         y =  qy + D1 * self.cube.s1y + D2 * self.cube.s2y
         z =  qz + D1 * self.cube.s1z + D2 * self.cube.s2z
-        
-# Note: f1 and f2 are not initialized from cosmo yet. There are growth factors missing in the velocity definition
 
         vx = a * H * (f1 * self.cube.s1x + f2 * D2 * self.cube.s2x)
         vy = a * H * (f1 * self.cube.s1y + f2 * D2 * self.cube.s2y)
         vz = a * H * (f1 * self.cube.s1z + f2 * D2 * self.cube.s2z)
+        
+        # self.velocities = jnp.array([vx,vy,vz])
 
         if self.format == 'nyx':
             self.writenyx(x,y,z,vx,vy,vz,mass)

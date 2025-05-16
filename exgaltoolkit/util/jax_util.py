@@ -1,3 +1,7 @@
+def distributed_initialize():
+    import jax
+    if (jax._src.distributed.global_state.client is None): jax.distributed.initialize()
+
 from .log_util import parprint
 # Copied from TOAST
 def jax_local_device():
