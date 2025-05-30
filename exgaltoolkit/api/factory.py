@@ -15,6 +15,11 @@ class SimulationFactory:
     """Factory for creating simulations."""
     
     @staticmethod
+    def from_config(config: SimulationConfig) -> MockGenerationSimulation:
+        """Create simulation from configuration object."""
+        return MockGenerationSimulation(config)
+    
+    @staticmethod
     def create_mock_generation_simulation(
         cosmology_params: CosmologicalParameters,
         power_spectrum: PowerSpectrum,

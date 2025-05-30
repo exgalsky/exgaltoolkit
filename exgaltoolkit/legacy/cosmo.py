@@ -24,7 +24,7 @@ class CosmologyInterface:
             # Initialize services
             self._cosmology_service = CosmologyService(cosmo_params)
             self._power_spectrum_service = PowerSpectrumService(
-                self._cosmology_service, power_spectrum
+                power_spectrum
             )
             
         except Exception as e:

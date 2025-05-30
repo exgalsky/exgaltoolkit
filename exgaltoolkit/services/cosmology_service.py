@@ -3,6 +3,7 @@ Cosmology and power spectrum services.
 """
 import jax
 import jax.numpy as jnp
+import numpy as np
 from typing import Optional, Dict
 from ..core.config import CosmologicalParameters, PowerSpectrum
 from ..core.data_models import GrowthFactors
@@ -76,6 +77,10 @@ class CosmologyService:
             f2=f2
         )
     
+    def get_growth_factors(self, z_array: Optional[jnp.ndarray] = None) -> GrowthFactors:
+        """Get growth factors (alias for compute_growth_factors for backward compatibility)."""
+        return self.compute_growth_factors(z_array)
+    
     def get_hubble_parameter(self, z: float) -> float:
         """Get Hubble parameter at redshift z."""
         return 100 * self.parameters.h * jnp.sqrt(
@@ -94,7 +99,6 @@ class PowerSpectrumService:
     
     def _get_default_power_spectrum(self) -> PowerSpectrum:
         """Get default power spectrum from data file."""
-        import numpy as np
         from importlib.resources import files
         
         pkfile = files("exgaltoolkit.data").joinpath("camb_40107036_matterpower.dat")
@@ -107,9 +111,16 @@ class PowerSpectrumService:
     
     def get_transfer_function(self, k_grid: jnp.ndarray, d3k: float, N: int) -> jnp.ndarray:
         """Get transfer function for given k grid."""
-        import numpy as np
-        
-        power_data = np.asarray([self.power_spectrum.k, self.power_spectrum.power])
+        # If k and power arrays are not set, get default power spectrum
+        if self.power_spectrum.k is None or self.power_spectrum.power is None:
+            default_ps = self._get_default_power_spectrum()
+            k_array = default_ps.k
+            power_array = default_ps.power
+        else:
+            k_array = self.power_spectrum.k
+            power_array = self.power_spectrum.power
+            
+        power_data = np.asarray([k_array, power_array])
         p_whitenoise = (2*np.pi)**3 / (d3k * N**3)  # white noise power spectrum
         transfer = power_data.copy()
         transfer[1] = (power_data[1] / p_whitenoise)**0.5  # transfer(k) = sqrt[P(k)/P_whitenoise]

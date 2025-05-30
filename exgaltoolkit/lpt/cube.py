@@ -17,7 +17,7 @@ class Cube:
 
         self.N       = kwargs.get('N',512)
         self.Lbox    = kwargs.get('Lbox',7700.0)
-        self.partype = kwargs.get('partype','jaxshard')
+        self.partype = kwargs.get('partype','jaxshard') if 'partype' not in kwargs or kwargs['partype'] is not None else None
         self.nlpt    = kwargs.get('nlpt',2)
 
         self.dk  = 2*jnp.pi/self.Lbox
@@ -41,7 +41,7 @@ class Cube:
         self.host_id = 0
 
         if self.partype == 'jaxshard':
-            self.ngpus   = int(os.environ.get("XGSMENV_NGPUS"))
+            self.ngpus   = int(os.environ.get("XGSMENV_NGPUS", "1"))
             self.host_id = jax.process_index()
             self.start   = self.host_id * self.N // self.ngpus
             self.end     = (self.host_id + 1) * self.N // self.ngpus

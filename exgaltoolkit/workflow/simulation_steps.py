@@ -187,6 +187,7 @@ class LPTDisplacementStep(SimulationStep):
             # For backward compatibility, store the last displacement fields
             if config.simulation.n_iterations > 0:
                 last_disp = context.get(f'lpt_displacements_{config.simulation.n_iterations-1}')
+                context.set('lpt_displacements', last_disp)  # Store generic key for ComputeParticlesStep
                 context.set('s1x', last_disp.s1x)
                 context.set('s1y', last_disp.s1y)
                 context.set('s1z', last_disp.s1z)
@@ -208,6 +209,124 @@ class LPTDisplacementStep(SimulationStep):
                 message=f"LPT calculation failed: {str(e)}"
             )
 
+
+class ComputeParticlesStep(SimulationStep):
+    """Compute particle positions and velocities from LPT displacements."""
+    
+    @property
+    def name(self) -> str:
+        return "particles"
+    
+    def validate_prerequisites(self, context: SimulationContext) -> bool:
+        """Check if prerequisites for this step are met."""
+        # Debug: print available keys
+        print(f"DEBUG ComputeParticlesStep: Looking for 'lpt_displacements'")
+        print(f"DEBUG ComputeParticlesStep: Available keys: {list(context.data.keys())}")
+        
+        has_data = context.has('lpt_displacements')
+        print(f"DEBUG ComputeParticlesStep: Prerequisites met: {has_data}")
+        return has_data
+    
+    def execute(self, context: SimulationContext) -> StepResult:
+        """Execute particle computation."""
+        try:
+            print(f"DEBUG ComputeParticlesStep: Starting execution")
+            config = context.config
+            
+            # Get LPT displacements from the last iteration
+            iteration = config.simulation.n_iterations - 1
+            print(f"DEBUG ComputeParticlesStep: Looking for iteration {iteration}")
+            lpt_displacements = context.get(f'lpt_displacements_{iteration}')
+            
+            if lpt_displacements is None:
+                print(f"DEBUG ComputeParticlesStep: Fallback to generic 'lpt_displacements'")
+                lpt_displacements = context.get('lpt_displacements')
+            
+            print(f"DEBUG ComputeParticlesStep: Got LPT displacements: {lpt_displacements is not None}")
+            
+            # Compute particles using the helper function
+            particles = self._compute_particles_from_displacements(
+                lpt_displacements, config
+            )
+            
+            print(f"DEBUG ComputeParticlesStep: Computed particles: {particles is not None}")
+            
+            # Store particles in context
+            context.set('particles', particles)
+            
+            print(f"DEBUG ComputeParticlesStep: Stored particles in context")
+            
+            return StepResult(
+                success=True,
+                step_name=self.name,
+                message="Particle positions computed from LPT displacements"
+            )
+            
+        except Exception as e:
+            print(f"DEBUG ComputeParticlesStep: Error in execution: {e}")
+            import traceback
+            traceback.print_exc()
+            return StepResult(
+                success=False,
+                step_name=self.name,
+                message=f"Particle computation failed: {str(e)}"
+            )
+    
+    def _compute_particles_from_displacements(self, lpt_displacements, config):
+        """Convert LPT displacements to particle positions and velocities."""
+        import jax.numpy as jnp
+        from ..core.data_models import ParticleData
+        
+        N = config.grid.N
+        Lbox = config.grid.Lbox
+        
+        # Create initial particle grid
+        dx = Lbox / N
+        x, y, z = jnp.meshgrid(
+            jnp.arange(N) * dx,
+            jnp.arange(N) * dx, 
+            jnp.arange(N) * dx,
+            indexing='ij'
+        )
+        
+        # Apply displacements
+        x_final = x + lpt_displacements.s1x
+        y_final = y + lpt_displacements.s1y
+        z_final = z + lpt_displacements.s1z
+        
+        if lpt_displacements.s2x is not None:
+            x_final += lpt_displacements.s2x
+            y_final += lpt_displacements.s2y
+            z_final += lpt_displacements.s2z
+        
+        # Apply periodic boundary conditions
+        x_final = x_final % Lbox
+        y_final = y_final % Lbox
+        z_final = z_final % Lbox
+        
+        # Flatten to particle arrays
+        positions = jnp.array([
+            x_final.flatten(),
+            y_final.flatten(), 
+            z_final.flatten()
+        ])
+        
+        # Compute velocities (simplified for now)
+        velocities = jnp.zeros_like(positions)
+        
+        # Compute particle mass
+        total_volume = Lbox**3
+        n_particles = N**3
+        mass = total_volume / n_particles
+        masses = jnp.full(n_particles, mass)
+        
+        return ParticleData(
+            positions=positions,
+            velocities=velocities,
+            masses=masses
+        )
+
+
 class InitialConditionsWriteStep(SimulationStep):
     """Write initial conditions to file."""
     
@@ -218,17 +337,27 @@ class InitialConditionsWriteStep(SimulationStep):
     def validate_prerequisites(self, context: SimulationContext) -> bool:
         """Check if prerequisites for this step are met."""
         config = context.config
-        return (config.simulation.write_ics and 
+        print(f"DEBUG WriteICs: Checking prerequisites")
+        print(f"DEBUG WriteICs: write_ics = {config.simulation.write_ics}")
+        print(f"DEBUG WriteICs: has s1x = {context.has('s1x')}")
+        print(f"DEBUG WriteICs: has s1y = {context.has('s1y')}")
+        print(f"DEBUG WriteICs: has s1z = {context.has('s1z')}")
+        print(f"DEBUG WriteICs: Available keys: {list(context.data.keys())}")
+        result = (config.simulation.write_ics and 
                 context.has('s1x') and 
                 context.has('s1y') and 
                 context.has('s1z'))
+        print(f"DEBUG WriteICs: Prerequisites met: {result}")
+        return result
     
     def execute(self, context: SimulationContext) -> StepResult:
         """Execute initial conditions writing."""
         try:
             config = context.config
+            print(f"DEBUG WriteICs: Starting execution")
             
             if not config.simulation.write_ics:
+                print(f"DEBUG WriteICs: write_ics is False, skipping")
                 return StepResult(
                     success=True,
                     step_name=self.name,
@@ -236,10 +365,12 @@ class InitialConditionsWriteStep(SimulationStep):
                 )
             
             # Initialize cosmology service to get growth factors
+            print(f"DEBUG WriteICs: Creating cosmology service")
             cosmo_service = CosmologyService(config.cosmology)
             growth_factors = cosmo_service.compute_growth_factors()
             
             # Get displacement fields
+            print(f"DEBUG WriteICs: Getting displacement fields")
             s1x = context.get('s1x')
             s1y = context.get('s1y') 
             s1z = context.get('s1z')
@@ -332,8 +463,17 @@ class InitialConditionsWriteStep(SimulationStep):
         # Create mass array
         masses = jnp.full_like(x, mass)
         
+        # Flatten the arrays for output
+        x_flat = x.flatten()
+        y_flat = y.flatten()
+        z_flat = z.flatten()
+        vx_flat = vx.flatten()
+        vy_flat = vy.flatten()
+        vz_flat = vz.flatten()
+        masses_flat = masses.flatten()
+        
         return ParticleData(
-            positions=jnp.array([x, y, z]),
-            velocities=jnp.array([vx, vy, vz]),
-            masses=masses
+            positions=jnp.array([x_flat, y_flat, z_flat]),
+            velocities=jnp.array([vx_flat, vy_flat, vz_flat]),
+            masses=masses_flat
         )

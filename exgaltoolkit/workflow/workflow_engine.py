@@ -9,10 +9,11 @@ from .simulation_steps import (
     NoiseGenerationStep,
     ConvolutionStep, 
     LPTDisplacementStep,
+    ComputeParticlesStep,
     InitialConditionsWriteStep
 )
 
-class SimulationWorkflow:
+class WorkflowEngine:
     """Orchestrates the simulation pipeline with clear step definitions."""
     
     def __init__(self, config: SimulationConfig):
@@ -34,8 +35,13 @@ class SimulationWorkflow:
         else:
             target_steps = self._get_steps_until(until_step)
         
+        print(f"DEBUG WorkflowEngine: until_step = {until_step}")
+        print(f"DEBUG WorkflowEngine: target_steps = {[step.name for step in target_steps]}")
+        print(f"DEBUG WorkflowEngine: Total target steps: {len(target_steps)}")
+        
         try:
-            for step in target_steps:
+            for i, step in enumerate(target_steps):
+                print(f"DEBUG WorkflowEngine: Processing step {i+1}/{len(target_steps)}: {step.name}")
                 # Check prerequisites
                 if not step.validate_prerequisites(self.context):
                     result = StepResult(
@@ -53,10 +59,13 @@ class SimulationWorkflow:
                     )
                 
                 # Execute step
+                print(f"DEBUG WorkflowEngine: Executing step {step.name}")
                 result = step.execute(self.context)
                 step_results.append(result)
+                print(f"DEBUG WorkflowEngine: Step {step.name} result - Success: {result.success}, Message: {result.message}")
                 
                 if not result.success:
+                    print(f"DEBUG WorkflowEngine: Step {step.name} failed, returning failure")
                     return SimulationResult(
                         success=False,
                         final_step=step.name,
@@ -65,13 +74,16 @@ class SimulationWorkflow:
                         message=f"Failed at step {step.name}: {result.message}"
                     )
                 
-                # Check if this is our target step
-                if step.name == until_step:
+                # Check if this is our target step (only break if not 'all')
+                if until_step != 'all' and step.name == until_step:
                     break
+            
+            # Determine the actual final step executed
+            final_step_name = target_steps[-1].name if target_steps else until_step
             
             return SimulationResult(
                 success=True,
-                final_step=until_step,
+                final_step=final_step_name,
                 step_results=step_results,
                 context=self.context,
                 message="Simulation completed successfully"
@@ -92,6 +104,7 @@ class SimulationWorkflow:
             NoiseGenerationStep(),
             ConvolutionStep(),
             LPTDisplacementStep(),
+            ComputeParticlesStep(),
             InitialConditionsWriteStep()
         ]
         return steps
