@@ -6,7 +6,23 @@ py.install_sources(
   subdir: 'exgaltoolkit'
 )
 
-# Install new architecture modules directly instead of using subdirs
+# Install simplified API modules
+py.install_sources(
+  ['cosmology/__init__.py', 'cosmology/parameters.py', 'cosmology/growth.py'],
+  subdir: 'exgaltoolkit/cosmology'
+)
+
+py.install_sources(
+  ['grid/__init__.py', 'grid/operations.py', 'grid/lpt.py'],
+  subdir: 'exgaltoolkit/grid'
+)
+
+py.install_sources(
+  ['initial_conditions/__init__.py', 'initial_conditions/generator.py', 'initial_conditions/writer.py'],
+  subdir: 'exgaltoolkit/initial_conditions'
+)
+
+# Install complex architecture modules (to be deprecated later)
 py.install_sources(
   ['core/__init__.py', 'core/exceptions.py', 'core/config.py', 'core/data_models.py'],
   subdir: 'exgaltoolkit/core'

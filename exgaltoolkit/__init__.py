@@ -1,81 +1,46 @@
 """
-ExGalToolkit: A toolkit for extragalactic simulations.
+ExGalToolkit: A Python-based, distributed, JAX-accelerated toolkit for 
+generating cosmological initial conditions.
 
-This package provides both a modern, refactored architecture and backward-compatible
-legacy interfaces for existing code.
-
-New Architecture:
-- exgaltoolkit.api: High-level simulation interfaces
-- exgaltoolkit.core: Core configuration and data models
-- exgaltoolkit.services: Modular business logic services  
-- exgaltoolkit.workflow: Step-based workflow execution
+Simplified API:
+- exgaltoolkit.initial_conditions: Main IC generation interface
+- exgaltoolkit.cosmology: Cosmological parameters and growth factors
+- exgaltoolkit.grid: Grid operations and LPT calculations
 
 Legacy Compatibility:
 - exgaltoolkit.mockgen: Original mock generation module
-- exgaltoolkit.lpt: Original LPT module
+- exgaltoolkit.lpt: Original LPT module  
 - All original classes and interfaces preserved
 """
 
-# Try to import new API, fall back gracefully if not available
+# Simplified API - Import new modular components
 try:
-    from .api import SimulationFactory, MockGenerationSimulation
-    NEW_API_AVAILABLE = True
+    from .initial_conditions import ICGenerator, ICWriter
+    from .cosmology import CosmologyService, CosmologicalParameters
+    from .grid import GridOperations, LPTCalculator
+    SIMPLIFIED_API_AVAILABLE = True
 except ImportError:
-    # New API not available, define placeholder variables
-    SimulationFactory = None
-    MockGenerationSimulation = None
-    NEW_API_AVAILABLE = False
-
-# Try to import core components, fall back gracefully if not available
-try:
-    from .core.config import (
-        SimulationConfig,
-        CosmologicalParameters, 
-        PowerSpectrum,
-        GridConfiguration,
-        SimulationParameters,
-        ParallelConfig,
-        OutputConfig
-    )
-    from .core.data_models import (
-        SimulationResults,
-        ParticleData,
-        LPTDisplacements,
-        GridData
-    )
-    CORE_AVAILABLE = True
-except ImportError:
-    # Core not available, define placeholder variables
-    SimulationConfig = None
+    # Simplified API not available
+    ICGenerator = None
+    ICWriter = None
+    CosmologyService = None
     CosmologicalParameters = None
-    PowerSpectrum = None
-    GridConfiguration = None
-    SimulationParameters = None
-    ParallelConfig = None
-    OutputConfig = None
-    SimulationResults = None
-    ParticleData = None
-    LPTDisplacements = None
-    GridData = None
-    CORE_AVAILABLE = False
+    GridOperations = None
+    LPTCalculator = None
+    SIMPLIFIED_API_AVAILABLE = False
 
-# Try to import legacy compatibility wrappers, fall back to original modules
+# Legacy compatibility - import original classes
 try:
-    from .legacy import Sky, Cube, CosmologyInterface, ICs
-    LEGACY_WRAPPERS_AVAILABLE = True
+    from .mockgen import Sky, CosmologyInterface, ICs
+    from .lpt import Cube
+    LEGACY_AVAILABLE = True
 except ImportError:
-    # Legacy wrappers not available, import original classes
-    try:
-        from .mockgen import Sky, CosmologyInterface, ICs
-        from .lpt import Cube
-        LEGACY_WRAPPERS_AVAILABLE = False
-    except ImportError:
-        # Even original classes not available
-        Sky = None
-        Cube = None
-        CosmologyInterface = None
-        ICs = None
-        LEGACY_WRAPPERS_AVAILABLE = False
+    # Even original classes not available
+    Sky = None
+    Cube = None
+    CosmologyInterface = None
+    ICs = None
+    LEGACY_AVAILABLE = False
 
 # For backward compatibility, also expose legacy modules
 from . import mockgen
@@ -85,35 +50,20 @@ __version__ = "2.0.0"
 
 __all__ = []
 
-# Add new API exports if available
-if NEW_API_AVAILABLE:
-    __all__.extend(['SimulationFactory', 'MockGenerationSimulation'])
-
-# Add core exports if available  
-if CORE_AVAILABLE:
+# Add simplified API exports if available
+if SIMPLIFIED_API_AVAILABLE:
     __all__.extend([
-        'SimulationConfig',
+        'ICGenerator', 
+        'ICWriter',
+        'CosmologyService',
         'CosmologicalParameters',
-        'PowerSpectrum', 
-        'GridConfiguration',
-        'SimulationParameters',
-        'ParallelConfig',
-        'OutputConfig',
-        'SimulationResults',
-        'ParticleData',
-        'LPTDisplacements',
-        'GridData',
+        'GridOperations', 
+        'LPTCalculator'
     ])
 
 # Add legacy exports if available
-if Sky is not None:
-    __all__.append('Sky')
-if Cube is not None:
-    __all__.append('Cube')
-if CosmologyInterface is not None:
-    __all__.append('CosmologyInterface')
-if ICs is not None:
-    __all__.append('ICs')
+if LEGACY_AVAILABLE:
+    __all__.extend(['Sky', 'Cube', 'CosmologyInterface', 'ICs'])
 
-# Always try to expose legacy modules for backward compatibility
+# Always expose legacy modules for backward compatibility
 __all__.extend(['mockgen', 'lpt'])

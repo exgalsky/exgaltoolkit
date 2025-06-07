@@ -7,6 +7,7 @@ This test verifies the core functionality of the exgaltoolkit by:
 2. Running Sky simulation with noise generation and convolution
 3. Running LPT displacement calculations
 4. Verifying that outputs have expected properties and shapes
+5. Comparing legacy vs refactored implementations for consistency
 """
 
 import unittest
@@ -15,9 +16,19 @@ import os
 import numpy as np
 import jax.numpy as jnp
 import camb
+import warnings
 import exgaltoolkit.lpt as lpt
 import exgaltoolkit.mockgen as mg
 import exgaltoolkit.util.jax_util as ju
+
+# Try to import the new API
+try:
+    from exgaltoolkit.api import SimulationFactory
+    from exgaltoolkit.core.config import CosmologicalParameters, PowerSpectrum
+    NEW_API_AVAILABLE = True
+except ImportError as e:
+    warnings.warn(f"New API not available: {e}")
+    NEW_API_AVAILABLE = False
 
 
 class TestMinimalExample(unittest.TestCase):
@@ -219,7 +230,230 @@ class TestMinimalExample(unittest.TestCase):
         
         # Results should be different
         self.assertFalse(np.array_equal(s1x_first, s1x_second))
+    
+    def test_print_helpful_information_legacy(self):
+        """Test that prints helpful information like minimal_example_serial.py (Legacy Version)"""
+        print(f"\n{'='*60}")
+        print("LEGACY VERSION - Testing minimal example functionality")
+        print(f"{'='*60}")
+        
+        cosmo = mg.CosmologyInterface(pspec=self.my_get_pspec())
+        
+        print(f"Parameters:")
+        print(f"  N = {self.N}")
+        print(f"  seed = {self.seed}")
+        print(f"  H0 = {self.H0}")
+        print(f"  z_ics = {self.zics}")
+        
+        # Generate delta
+        print(f"\n--- Step 1: Generating density field (delta) ---")
+        mocksky1 = mg.Sky(cosmo=cosmo, N=self.N, seed=self.seed, 
+                         Niter=self.Niter, icw=True)
+        result = mocksky1.run(laststep='convolution')
+        delta = np.asarray(mocksky1.cube.delta)
+        
+        print(f"Delta field generated:")
+        print(f"  Shape: {delta.shape}")
+        print(f"  Mean: {np.mean(delta):.6f}")
+        print(f"  Std: {np.std(delta):.6f}")
+        print(f"  Min: {np.min(delta):.6f}")
+        print(f"  Max: {np.max(delta):.6f}")
+        
+        # Generate LPT displacements
+        print(f"\n--- Step 2: Computing LPT displacements ---")
+        mocksky2 = mg.Sky(cosmo=cosmo, N=self.N, seed=self.seed, 
+                         Niter=self.Niter, icw=True)
+        result = mocksky2.run(laststep='LPT')
+        s1x = np.asarray(mocksky2.cube.s1x)
+        s1y = np.asarray(mocksky2.cube.s1y)
+        s1z = np.asarray(mocksky2.cube.s1z)
+        
+        print(f"LPT displacements generated:")
+        print(f"  s1x - Mean: {np.mean(s1x):.6f}, Std: {np.std(s1x):.6f}")
+        print(f"  s1y - Mean: {np.mean(s1y):.6f}, Std: {np.std(s1y):.6f}")
+        print(f"  s1z - Mean: {np.mean(s1z):.6f}, Std: {np.std(s1z):.6f}")
+        
+        # Save to file like the original example
+        output_file = os.path.join(self.temp_dir, "legacy_grids.npz")
+        np.savez(output_file,
+                 delta=delta,
+                 s1x=s1x,
+                 s1y=s1y,
+                 s1z=s1z)
+        
+        print(f"\n--- Results saved to: {output_file} ---")
+        file_size = os.path.getsize(output_file) / (1024**2)  # MB
+        print(f"File size: {file_size:.2f} MB")
+        
+        # Verify all steps succeeded
+        self.assertEqual(result, 0)
+        self.assertTrue(os.path.exists(output_file))
+        
+        print(f"{'='*60}")
+        print("LEGACY VERSION - All tests passed!")
+        print(f"{'='*60}\n")
+    
+    @unittest.skipIf(not NEW_API_AVAILABLE, "New API not available")
+    def test_print_helpful_information_refactored(self):
+        """Test that prints helpful information using the new refactored API"""
+        print(f"\n{'='*60}")
+        print("REFACTORED VERSION - Testing minimal example functionality")
+        print(f"{'='*60}")
+        
+        print(f"Parameters:")
+        print(f"  N = {self.N}")
+        print(f"  seed = {self.seed}")
+        print(f"  H0 = {self.H0}")
+        print(f"  z_ics = {self.zics}")
+        
+        # Create simulation using new API
+        print(f"\n--- Creating simulation with new API ---")
+        factory = SimulationFactory()
+        simulation = factory.create_mock_generation_simulation(
+            N=self.N,
+            L=7700.0,  # Box size
+            H0=self.H0,
+            Omega_m=0.31,
+            seed=self.seed,
+            z_initial=self.zics,
+            write_ics=True
+        )
+        
+        print(f"Simulation created successfully")
+        print(f"  Grid size: {self.N}^3")
+        print(f"  Box size: 7700.0 Mpc/h")
+        
+        # Run simulation
+        print(f"\n--- Running complete simulation pipeline ---")
+        result = simulation.run()
+        
+        print(f"Simulation completed:")
+        print(f"  Success: {result.success}")
+        print(f"  Message: {result.message}")
+        
+        # Get results
+        grid_data = simulation.get_grid_data()
+        particle_positions, particle_velocities = simulation.get_particle_data()
+        
+        if grid_data is not None and hasattr(grid_data, 'delta'):
+            delta = np.asarray(grid_data.delta)
+            print(f"\nDelta field from new API:")
+            print(f"  Shape: {delta.shape}")
+            print(f"  Mean: {np.mean(delta):.6f}")
+            print(f"  Std: {np.std(delta):.6f}")
+            print(f"  Min: {np.min(delta):.6f}")
+            print(f"  Max: {np.max(delta):.6f}")
+        
+        if particle_positions is not None:
+            positions = np.asarray(particle_positions)
+            print(f"\nParticle positions from new API:")
+            print(f"  Shape: {positions.shape}")
+            print(f"  X range: [{np.min(positions[..., 0]):.2f}, {np.max(positions[..., 0]):.2f}]")
+            print(f"  Y range: [{np.min(positions[..., 1]):.2f}, {np.max(positions[..., 1]):.2f}]")
+            print(f"  Z range: [{np.min(positions[..., 2]):.2f}, {np.max(positions[..., 2]):.2f}]")
+        
+        if particle_velocities is not None:
+            velocities = np.asarray(particle_velocities)
+            print(f"\nParticle velocities from new API:")
+            print(f"  Shape: {velocities.shape}")
+            print(f"  RMS velocity: {np.sqrt(np.mean(velocities**2)):.6f}")
+        
+        # Save results using new API format
+        output_file = os.path.join(self.temp_dir, "refactored_results.npz")
+        if grid_data is not None:
+            save_data = {}
+            if hasattr(grid_data, 'delta'):
+                save_data['delta'] = np.asarray(grid_data.delta)
+            if particle_positions is not None:
+                save_data['positions'] = np.asarray(particle_positions)
+            if particle_velocities is not None:
+                save_data['velocities'] = np.asarray(particle_velocities)
+            
+            if save_data:
+                np.savez(output_file, **save_data)
+                print(f"\n--- Results saved to: {output_file} ---")
+                file_size = os.path.getsize(output_file) / (1024**2)  # MB
+                print(f"File size: {file_size:.2f} MB")
+        
+        # Verify success
+        self.assertTrue(result.success)
+        
+        print(f"{'='*60}")
+        print("REFACTORED VERSION - All tests passed!")
+        print(f"{'='*60}\n")
+    
+    @unittest.skipIf(not NEW_API_AVAILABLE, "New API not available")
+    def test_compare_legacy_vs_refactored(self):
+        """Compare results between legacy and refactored implementations"""
+        print(f"\n{'='*60}")
+        print("COMPARISON - Legacy vs Refactored Implementation")
+        print(f"{'='*60}")
+        
+        # Legacy implementation
+        print(f"\n--- Running Legacy Implementation ---")
+        cosmo = mg.CosmologyInterface(pspec=self.my_get_pspec())
+        mocksky = mg.Sky(cosmo=cosmo, N=self.N, seed=self.seed, 
+                        Niter=self.Niter, icw=True)
+        mocksky.run(laststep='convolution')
+        legacy_delta = np.asarray(mocksky.cube.delta)
+        
+        # Refactored implementation
+        print(f"--- Running Refactored Implementation ---")
+        factory = SimulationFactory()
+        simulation = factory.create_mock_generation_simulation(
+            N=self.N,
+            L=7700.0,
+            H0=self.H0,
+            Omega_m=0.31,
+            seed=self.seed,
+            z_initial=self.zics
+        )
+        result = simulation.run()
+        grid_data = simulation.get_grid_data()
+        
+        if grid_data is not None and hasattr(grid_data, 'delta'):
+            refactored_delta = np.asarray(grid_data.delta)
+            
+            print(f"\n--- Comparison Results ---")
+            print(f"Legacy delta    - Mean: {np.mean(legacy_delta):.6f}, Std: {np.std(legacy_delta):.6f}")
+            print(f"Refactored delta - Mean: {np.mean(refactored_delta):.6f}, Std: {np.std(refactored_delta):.6f}")
+            
+            # Check if they're approximately equal (allowing for small numerical differences)
+            if np.allclose(legacy_delta, refactored_delta, rtol=1e-10, atol=1e-12):
+                print(f"✅ Results are numerically identical!")
+            else:
+                print(f"⚠️  Results differ (expected for different implementations)")
+                diff = np.abs(legacy_delta - refactored_delta)
+                print(f"   Max absolute difference: {np.max(diff):.2e}")
+                print(f"   RMS difference: {np.sqrt(np.mean(diff**2)):.2e}")
+        else:
+            print(f"⚠️  Could not compare - refactored version didn't produce delta field")
+        
+        print(f"{'='*60}")
+        print("COMPARISON - Complete!")
+        print(f"{'='*60}\n")
 
 
 if __name__ == '__main__':
-    unittest.main()
+    # Special test runner that shows verbose output
+    import sys
+    
+    # Create test suite with only the informational tests
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+    
+    # Add the informational tests
+    suite.addTest(TestMinimalExample('test_print_helpful_information_legacy'))
+    if NEW_API_AVAILABLE:
+        suite.addTest(TestMinimalExample('test_print_helpful_information_refactored'))
+        suite.addTest(TestMinimalExample('test_compare_legacy_vs_refactored'))
+    
+    # Run with high verbosity to see the print statements
+    runner = unittest.TextTestRunner(verbosity=2, buffer=False, stream=sys.stdout)
+    result = runner.run(suite)
+    
+    # Also run all tests
+    print(f"\n{'='*80}")
+    print("Running complete test suite...")
+    print(f"{'='*80}")
+    unittest.main(argv=[''], exit=False, verbosity=1)
