@@ -160,8 +160,8 @@ class Cube:
             return arr
 
         if infield == 'noise':
-            # FT of delta from noise
-            delta = self._apply_grid_transfer_function(mfft.fft(self.delta))
+            # FT of delta from noise (transfer function already applied in noise2delta)
+            delta = mfft.fft(self.delta)
         elif infield == 'delta':
             # FT of delta
             delta = mfft.fft(self.delta)

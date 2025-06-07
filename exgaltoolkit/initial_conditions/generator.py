@@ -58,7 +58,13 @@ class ICGenerator:
         # Set up cosmology
         if cosmology is None:
             cosmology = CosmologicalParameters()
-        self.cosmology_service = CosmologyService(cosmology)
+        
+        # Generate power spectrum using CAMB if possible
+        power_spectrum = kwargs.get('power_spectrum', None)
+        if power_spectrum is None:
+            power_spectrum = self._generate_camb_power_spectrum(cosmology, z_initial)
+        
+        self.cosmology_service = CosmologyService(cosmology, power_spectrum)
         
         # Set up grid operations
         self.grid_ops = GridOperations(N=N, Lbox=Lbox, **kwargs)
@@ -256,6 +262,50 @@ class ICGenerator:
         
         return stats
     
+    def _generate_camb_power_spectrum(self, cosmology: CosmologicalParameters, z_initial: float) -> dict:
+        """Generate power spectrum using CAMB."""
+        try:
+            import camb
+            import jax.numpy as jnp
+            
+            # Convert our cosmological parameters to CAMB format
+            H0 = cosmology.h * 100  # CAMB expects H0 in km/s/Mpc
+            
+            # Set up CAMB parameters
+            camb_par = camb.set_params(
+                H0=H0,
+                ombh2=cosmology.omega_b * cosmology.h**2,
+                omch2=(cosmology.omega_m - cosmology.omega_b) * cosmology.h**2,
+                omk=cosmology.omega_k,
+                tau=0.066,  # Default optical depth
+                As=2e-9,    # Will be scaled by sigma_8
+                ns=cosmology.n_s
+            )
+            
+            # Set matter power spectrum
+            camb_par.set_matter_power(redshifts=[z_initial], kmax=2.0)
+            
+            # Get results
+            camb_wsp = camb.get_results(camb_par)
+            k, zlist, pk = camb_wsp.get_matter_power_spectrum(
+                minkh=1e-4, maxkh=1e2, npoints=2000
+            )
+            
+            return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk[0, :])}
+            
+        except ImportError:
+            # CAMB not available, use default power spectrum
+            import exgaltoolkit.util.log_util as xglogutil
+            if hasattr(self, 'mpiproc') and self.mpiproc == 0:
+                xglogutil.parprint("CAMB not available, using default power spectrum")
+            return None  # Will use default from CosmologyService
+        except Exception as e:
+            # CAMB failed, use default
+            import exgaltoolkit.util.log_util as xglogutil
+            if hasattr(self, 'mpiproc') and self.mpiproc == 0:
+                xglogutil.parprint(f"CAMB failed ({e}), using default power spectrum")
+            return None
+
     # Convenience methods for step-by-step execution
     def generate_noise(self):
         """Generate noise field only."""

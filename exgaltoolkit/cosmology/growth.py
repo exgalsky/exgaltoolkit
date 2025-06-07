@@ -3,6 +3,7 @@ Growth factors and cosmology service.
 """
 from dataclasses import dataclass
 from typing import Optional
+import numpy as np
 import jax
 import jax.numpy as jnp
 from .parameters import CosmologicalParameters, PowerSpectrum
@@ -20,9 +21,37 @@ class GrowthFactors:
 class CosmologyService:
     """Service for cosmological calculations."""
     
-    def __init__(self, parameters: CosmologicalParameters):
+    def __init__(self, parameters: CosmologicalParameters, power_spectrum: Optional[dict] = None):
         self.parameters = parameters
         self._growth_cache: Optional[GrowthFactors] = None
+        
+        # Set up power spectrum (for compatibility with existing cube interface)
+        if power_spectrum is not None:
+            self.pspec = power_spectrum
+        else:
+            self.pspec = self._get_default_power_spectrum()
+        
+        # Legacy compatibility attributes
+        self.h = parameters.h
+        self.omegam = parameters.omega_m
+        self.omegak = parameters.omega_k
+        self.omegal = parameters.omega_lambda
+    
+    def _get_default_power_spectrum(self) -> dict:
+        """Get default power spectrum from data file."""
+        try:
+            import numpy as np
+            from importlib.resources import files
+            
+            pkfile = files("exgaltoolkit.data").joinpath("camb_40107036_matterpower.dat")
+            k, pk = np.loadtxt(pkfile, usecols=(0, 1), unpack=True)
+            
+            return {'k': jnp.asarray(k), 'pofk': jnp.asarray(pk)}
+        except Exception:
+            # Fallback minimal power spectrum
+            k = jnp.logspace(-3, 1, 100)
+            pk = jnp.ones_like(k) * 1e-3  # Minimal flat power spectrum
+            return {'k': k, 'pofk': pk}
     
     def compute_growth_factors(self, z_array: Optional[jnp.ndarray] = None) -> GrowthFactors:
         """Compute linear and second-order growth factors."""
@@ -93,3 +122,17 @@ class CosmologyService:
             self.parameters.omega_k * (1 + z)**2 + 
             self.parameters.omega_m * (1 + z)**3
         )
+    
+    def get_growth(self):
+        """Get growth factors in legacy format (for compatibility with existing code)."""
+        growth_factors = self.get_growth_factors()
+        # Return in the format expected by legacy code: [z, H(z), D1, D2, f1, f2]
+        self.growth = jnp.asarray([
+            growth_factors.z,
+            growth_factors.hubble,
+            growth_factors.d1,
+            growth_factors.d2,
+            growth_factors.f1,
+            growth_factors.f2
+        ])
+        return self.growth
