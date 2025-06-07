@@ -28,8 +28,11 @@ class CosmologyService:
         # Set up power spectrum (for compatibility with existing cube interface)
         if power_spectrum is not None:
             self.pspec = power_spectrum
+            self.power_spectrum = power_spectrum  # Also expose as power_spectrum attribute
         else:
-            self.pspec = self._get_default_power_spectrum()
+            default_pspec = self._get_default_power_spectrum()
+            self.pspec = default_pspec
+            self.power_spectrum = default_pspec
         
         # Legacy compatibility attributes
         self.h = parameters.h

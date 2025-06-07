@@ -329,8 +329,13 @@ class ICGenerator:
         return self.grid_ops.get_density_field()
     
     def get_displacement_fields(self):
-        """Get LPT displacement fields."""
-        return self.grid_ops.get_displacement_fields()
+        """Get LPT displacement fields (only returns components based on LPT order)."""
+        all_displacements = self.grid_ops.get_displacement_fields()
+        # Return only the appropriate number of components based on LPT order
+        if self.lpt_order == 1:
+            return all_displacements[:3]  # Only first-order: s1x, s1y, s1z
+        else:
+            return all_displacements  # All components: s1x, s1y, s1z, s2x, s2y, s2z
     
     def get_particle_positions(self):
         """Get particle positions."""

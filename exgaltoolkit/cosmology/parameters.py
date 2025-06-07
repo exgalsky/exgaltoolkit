@@ -28,7 +28,13 @@ class CosmologicalParameters:
         """Compute derived parameters and validate."""
         
         # Compute derived parameters
-        self.h = self.H0 / 100.0
+        # If h is explicitly provided, use it; otherwise derive from H0
+        if self.h is None:
+            self.h = self.H0 / 100.0
+        else:
+            # If h is provided, update H0 to be consistent
+            self.H0 = self.h * 100.0
+            
         self.omega_m = self.Omega_m * self.h**2
         self.omega_b = self.Omega_b * self.h**2
         self.omega_lambda = self.Omega_lambda

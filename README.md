@@ -1,27 +1,22 @@
-# EXtra-GALactic (sky simulation) TOOLKIT
+# EXtra-GALactic Toolkit
 
-### An assortment of tools and utilities needed for extra-galactic sky simulations with lagrangian perturbation theory
+A toolkit for extra-galactic sky simulations with Lagrangian Perturbation Theory
 
 ## Overview
 
-This toolkit provides a comprehensive framework for generating mock galaxy catalogs and initial conditions using Lagrangian Perturbation Theory (LPT). The codebase has been recently refactored to provide a modern, maintainable architecture while preserving 100% backward compatibility with existing user code.
+This toolkit provides a framework for generating cosmological initial conditions using Lagrangian Perturbation Theory (LPT). The codebase implements core functionality for cosmological simulations with JAX acceleration and MPI support.
 
 ## Architecture
 
-The toolkit now features a clean modular architecture with the following components:
+The toolkit features a modular architecture with the following components:
 
 ### Core Modules
-- **`exgaltoolkit.core`** - Configuration management, data models, and exception handling
-- **`exgaltoolkit.services`** - Business logic services (cosmology, grid operations, LPT, I/O)
-- **`exgaltoolkit.workflow`** - Step-based simulation execution pipeline
-- **`exgaltoolkit.api`** - High-level simulation interfaces and factory patterns
-- **`exgaltoolkit.legacy`** - Backward compatibility wrappers for existing interfaces
-
-### Legacy Modules (Fully Compatible)
-- **`exgaltoolkit.mockgen`** - Mock galaxy generation (Sky, CosmologyInterface, ICs)
-- **`exgaltoolkit.lpt`** - Lagrangian Perturbation Theory implementation (Cube)
+- **`exgaltoolkit.initial_conditions`** - IC generation classes (ICGenerator, ICWriter)
+- **`exgaltoolkit.cosmology`** - Cosmological parameters and services (CosmologyService, CosmologicalParameters)
+- **`exgaltoolkit.grid`** - Grid operations and LPT calculations (GridOperations, LPTCalculator)
 - **`exgaltoolkit.util`** - Utilities for MPI, JAX, and backend management
 - **`exgaltoolkit.mathutil`** - Mathematical utilities and random number generation
+- **`exgaltoolkit.data`** - Data files and resources
 
 ## Installation
 
@@ -37,47 +32,49 @@ pip install -e .
 
 ## Usage
 
-### New Modern API (Recommended for new projects)
+### Modern API
 
 ```python
-from exgaltoolkit.api import SimulationFactory
+from exgaltoolkit.initial_conditions import ICGenerator, ICWriter
+from exgaltoolkit.cosmology import CosmologyService, CosmologicalParameters
+from exgaltoolkit.grid import GridOperations, LPTCalculator
 
-# Create a simulation with clean configuration
-factory = SimulationFactory()
-simulation = factory.create_mock_generation_simulation(
-    N=128,           # Grid size
-    L=7700.0,        # Box size in Mpc/h
-    H0=70.0,         # Hubble constant
-    Omega_m=0.3,     # Matter density parameter
-    seed=12345       # Random seed
+# Create cosmological parameters
+cosmo_params = CosmologicalParameters(
+    H0=70.0,           # Hubble constant
+    Omega_m=0.3,       # Matter density parameter
+    Omega_b=0.05,      # Baryon density parameter
+    n_s=0.96,          # Scalar spectral index
+    sigma_8=0.8        # Amplitude of matter fluctuations
 )
 
-# Run the simulation
-result = simulation.run()
+# Initialize cosmology service
+cosmology = CosmologyService(cosmo_params)
 
-# Access results
-grid_data = simulation.get_grid_data()
-positions, velocities = simulation.get_particle_data()
-```
+# Create grid operations
+grid_ops = GridOperations(
+    N=64,              # Grid size
+    L=7700.0,          # Box size in Mpc/h
+    cosmology=cosmology
+)
 
-### Legacy API (Existing code continues to work)
+# Generate initial conditions
+ic_generator = ICGenerator(
+    grid_ops=grid_ops,
+    seed=12345         # Random seed
+)
 
-```python
-# All existing code works unchanged
-from exgaltoolkit.mockgen import Sky, CosmologyInterface
-from exgaltoolkit.lpt import Cube
-from exgaltoolkit.mockgen import ICs
+# Run the generation
+density_field, velocity_field = ic_generator.generate()
 
-# Original interface still works
-sky = Sky(N=128, L=7700.0, seed=12345)
-cube = Cube(sky)
-ics = ICs(cube)
-# ... etc
+# Write output
+ic_writer = ICWriter(grid_ops)
+ic_writer.write_fields("output.h5", density_field, velocity_field)
 ```
 
 ## Testing
 
-The toolkit includes comprehensive test suites to ensure reliability and compatibility:
+The toolkit includes comprehensive unit tests to ensure correctness:
 
 ### Running Tests
 
@@ -85,86 +82,45 @@ The toolkit includes comprehensive test suites to ensure reliability and compati
 # Run all tests
 pytest tests/
 
-# Run specific test files
-pytest tests/test_minimal_example.py
-pytest tests/test_refactored_architecture.py
-
 # Run with verbose output to see detailed information
-pytest -v -s tests/test_minimal_example.py
-
-# Run comparison tests with detailed output (standalone script)
-python tests/run_comparison_tests.py
+pytest -v -s tests/test_initial_conditions.py
 ```
 
-### Test Suites
+### Test Suite
 
-#### 1. Minimal Example Tests (`test_minimal_example.py`)
-Tests the basic functionality and workflow using the legacy interface:
-- Serial execution pipeline
-- Sky generation and initialization
-- Cube creation and LPT computation
-- Initial conditions generation
-- Output file creation
+#### Initial Conditions Tests (`test_initial_conditions.py`)
+Comprehensive tests for the core functionality:
 
-#### 2. Refactored Architecture Tests (`test_refactored_architecture.py`)
-Comprehensive tests for the new modular architecture:
+**Basic Functionality Tests:**
+- `test_cosmological_parameters_creation` - Validates cosmological parameter setup
+- `test_cosmology_service_initialization` - Tests cosmology service creation
+- `test_grid_operations_creation` - Validates grid operations setup
+- `test_ic_generator_initialization` - Tests IC generator creation
 
-**Configuration System Tests:**
-- `test_simulation_config_creation` - Validates configuration object creation
-- `test_simulation_factory_from_config` - Tests factory pattern with configurations
-- `test_simulation_factory_from_legacy_kwargs` - Tests legacy parameter conversion
+**Integration Tests:**
+- `test_density_field_generation` - End-to-end density field generation
+- `test_velocity_field_generation` - End-to-end velocity field generation
+- `test_full_ic_generation_pipeline` - Complete initial conditions pipeline
 
-**Execution Pipeline Tests:**
-- `test_simulation_execution` - End-to-end simulation execution
-- `test_legacy_compatibility_maintained` - Ensures legacy interfaces work
-- `test_backward_compatibility_wrapper` - Tests wrapper fallback mechanisms
+**Validation Tests:**
+- Density field statistics validation (mean, variance)
+- Power spectrum consistency checks
+- Output file generation and verification
 
-**Service Integration Tests:**
-- `test_cosmology_service_integration` - Cosmological parameter handling
-- `test_grid_service_integration` - Grid generation and FFT operations
+### Test Parameters
 
-#### 3. Enhanced Minimal Example Tests (`test_minimal_example.py`)
-Extended tests that replicate `minimal_example_serial.py` with detailed output:
-
-**Detailed Information Tests:**
-- `test_print_helpful_information_legacy` - Shows step-by-step legacy execution with statistics
-- `test_print_helpful_information_refactored` - Shows new API execution with detailed output
-- `test_compare_legacy_vs_refactored` - Side-by-side comparison of both implementations
-
-**Comparison Features:**
-- Detailed parameter display
-- Step-by-step execution logging
-- Statistical analysis of generated fields
-- File output verification
-- Numerical comparison between implementations
-
-#### 4. Standalone Comparison Script (`run_comparison_tests.py`)
-Comprehensive standalone script for detailed implementation comparison:
-
-```bash
-# Run detailed comparison with full output
-python tests/run_comparison_tests.py
-```
-
-**Features:**
-- CAMB power spectrum setup exactly like `minimal_example_serial.py`
-- Side-by-side execution of legacy and refactored implementations
-- Detailed statistical analysis and comparison
-- File size and performance metrics
-- Numerical accuracy verification
+Tests use realistic simulation parameters to ensure proper validation:
+- Grid size: N=64 (to minimize finite box effects)
+- Box size: L=7700.0 Mpc/h
+- CAMB power spectrum data
+- Fixed random seed for reproducibility
 
 ### Test Results
 
-Latest test run results:
-```
-============================= test session starts ==============================
-tests/test_minimal_example.py .......                                    [ 46%]
-tests/test_refactored_architecture.py ........                           [100%]
-
-============================= 15 passed in 42.79s ==============================
-```
-
-**15/15 tests passing** - Full validation of both legacy and modern interfaces.
+Latest test validation:
+- All density field means within tolerance (< 1e-6)
+- Power spectrum consistency verified
+- Complete pipeline functionality confirmed
 
 ## Development
 
@@ -172,32 +128,28 @@ tests/test_refactored_architecture.py ........                           [100%]
 
 ```
 exgaltoolkit/
-├── core/                    # Configuration and data models
-├── services/               # Business logic services  
-├── workflow/               # Execution pipeline
-├── api/                    # High-level interfaces
-├── legacy/                 # Backward compatibility
-├── mockgen/               # Legacy mock generation
-├── lpt/                   # Legacy LPT implementation
-├── util/                  # Utilities and backends
-└── mathutil/              # Mathematical operations
+├── initial_conditions/        # Main IC generation classes
+├── cosmology/                 # Cosmological parameters and services
+├── grid/                      # Grid operations and LPT calculations
+├── util/                      # MPI, JAX, and backend utilities
+├── mathutil/                  # Mathematical operations and RNG
+└── data/                      # Data files and resources
 ```
 
 ### Key Features
 
-**Separation of Concerns**: Clean modular architecture with distinct responsibilities
-**Backward Compatibility**: 100% compatibility with existing user code
-**Modern Patterns**: Factory patterns, dependency injection, workflow pipelines
-**Comprehensive Testing**: Full test coverage for all interfaces and functionality
+**Clean Architecture**: Minimal, focused modules with clear responsibilities
+**Modern Implementation**: JAX-accelerated computations with MPI support
+**Comprehensive Testing**: Full test coverage for core functionality
 **Type Safety**: Complete type annotations throughout the codebase
-**Documentation**: Comprehensive docstrings and error messages
+**Documentation**: Comprehensive docstrings and examples
+
+### Examples
+
+See the `examples/` directory for usage examples:
+- `minimal_example_serial.py` - Basic serial IC generation example
 
 ### Debugging and Troubleshooting
-
-To test the namespace of the installed package:
-```bash
-python ./tests/traverse_namespace.py
-```
 
 For development debugging:
 ```bash
@@ -207,11 +159,3 @@ export EXGAL_LOG_LEVEL=DEBUG
 # Run tests with detailed output
 pytest -v -s tests/
 ```
-
-## Migration Guide
-
-**For existing users**: No changes required - all existing code continues to work unchanged.
-
-**For new development**: Consider using the modern API for better error handling, validation, and maintainability.
-
-See `refactor-summary-1.md` for detailed information about the architectural changes and migration options.
