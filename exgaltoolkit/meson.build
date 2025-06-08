@@ -6,6 +6,12 @@ py.install_sources(
   subdir: 'exgaltoolkit'
 )
 
+# Install core implementation modules
+py.install_sources(
+  ['core/__init__.py', 'core/noise.py', 'core/transfers.py', 'core/lpt_math.py', 'core/fft_ops.py', 'core/k_grids.py'],
+  subdir: 'exgaltoolkit/core'
+)
+
 # Install core API modules
 py.install_sources(
   ['cosmology/__init__.py', 'cosmology/parameters.py', 'cosmology/growth.py'],

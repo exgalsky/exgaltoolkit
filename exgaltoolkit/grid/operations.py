@@ -1,19 +1,18 @@
 """
 Grid operations for distributed computing and FFT operations.
+
+Pure JAX implementation using the core module.
 """
 import jax.numpy as jnp
 from typing import Optional, Tuple
-import exgaltoolkit.util.jax_util as ju
+import exgaltoolkit.core as core
 
 class GridOperations:
     """
     Grid operations for cosmological simulations.
     
-    This class handles:
-    - Grid generation and management
-    - Distributed FFT operations
-    - Noise generation and convolution
-    - Integration with existing LPT Cube functionality
+    Modern JAX-native implementation that replaces legacy lpt.Cube functionality.
+    Uses the pure implementations from exgaltoolkit.core module.
     """
     
     def __init__(self, N: int, Lbox: float, **kwargs):
@@ -30,71 +29,64 @@ class GridOperations:
         self.N = N
         self.Lbox = Lbox
         
-        # Import and create the underlying Cube for compatibility
-        import exgaltoolkit.lpt as lpt
-        self.cube = lpt.Cube(N=N, Lbox=Lbox, **kwargs)
+        # Store additional parameters
+        self.partype = kwargs.get('partype', None)
         
-        # Expose key cube attributes for easy access
+        # Fields - these will be populated by the operations
         self.delta = None
         self.s1x = self.s1y = self.s1z = None
         self.s2x = self.s2y = self.s2z = None
     
     def generate_noise(self, seed: int = 12345):
-        """Generate initial noise field."""
-        self.cube.generate_noise(seed=seed)
+        """Generate initial noise field using core.noise module."""
+        grid_shape = (self.N, self.N, self.N)
+        self.delta = core.generate_white_noise(grid_shape, seed)
         return self
     
     def convolve_with_transfer_function(self, cosmology_service):
-        """Convolve noise with transfer function to get density field."""
-        self.cube.noise2delta(cosmology_service)
-        self.delta = self.cube.delta
+        """Convolve noise with transfer function using core.transfers module."""
+        if self.delta is None:
+            raise ValueError("Must generate noise before applying transfer function")
+        
+        # Apply power spectrum transfer function
+        self.delta = core.apply_power_spectrum_transfer(
+            noise_field=self.delta,
+            power_spectrum=cosmology_service.pspec,
+            box_size=self.Lbox
+        )
         return self
     
     def compute_lpt_displacements(self, order: int = 2, input_mode: str = 'noise'):
-        """Compute LPT displacement fields."""
-        if order > 0:
-            self.cube.slpt(infield=input_mode)
-            
-            # Extract displacements
-            self.s1x = getattr(self.cube, 's1x', None)
-            self.s1y = getattr(self.cube, 's1y', None) 
-            self.s1z = getattr(self.cube, 's1z', None)
-            
-            if order > 1:
-                self.s2x = getattr(self.cube, 's2x', None)
-                self.s2y = getattr(self.cube, 's2y', None)
-                self.s2z = getattr(self.cube, 's2z', None)
+        """Compute LPT displacement fields using core.lpt_math module."""
+        if self.delta is None:
+            raise ValueError("Must have density field before computing LPT displacements")
+        
+        # Compute displacements using pure JAX implementation
+        displacements = core.compute_lpt_displacements(
+            delta_field=self.delta,
+            box_size=self.Lbox,
+            order=order
+        )
+        
+        # Unpack results
+        if order == 1:
+            self.s1x, self.s1y, self.s1z = displacements
+        elif order == 2:
+            self.s1x, self.s1y, self.s1z, self.s2x, self.s2y, self.s2z = displacements
         
         return self
     
     def get_density_field(self) -> Optional[jnp.ndarray]:
         """Get the density contrast field."""
-        return getattr(self.cube, 'delta', None)
+        return self.delta
     
     def get_displacement_fields(self) -> Tuple[Optional[jnp.ndarray], ...]:
         """Get LPT displacement fields."""
-        return (
-            getattr(self.cube, 's1x', None),
-            getattr(self.cube, 's1y', None),
-            getattr(self.cube, 's1z', None),
-            getattr(self.cube, 's2x', None),
-            getattr(self.cube, 's2y', None),
-            getattr(self.cube, 's2z', None)
-        )
+        return (self.s1x, self.s1y, self.s1z, self.s2x, self.s2y, self.s2z)
     
     def get_k_grids(self) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """Get k-space coordinate grids."""
-        # Use the cube's k-space functionality if available
-        if hasattr(self.cube, 'get_k_grids'):
-            return self.cube.get_k_grids()
-        else:
-            # Fallback implementation
-            k_fundamental = 2 * jnp.pi / self.Lbox
-            k_nyquist = k_fundamental * self.N / 2
-            
-            k1d = jnp.fft.fftfreq(self.N, d=1.0/self.N) * k_fundamental
-            kx, ky, kz = jnp.meshgrid(k1d, k1d, k1d, indexing='ij')
-            return kx, ky, kz
+        return core.create_k_grids_rfft(self.N, self.Lbox)
     
     def compute_power_spectrum(self, field: Optional[jnp.ndarray] = None) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
@@ -118,28 +110,30 @@ class GridOperations:
         if field is None:
             raise ValueError("No field available for power spectrum calculation")
         
-        # Use cube's power spectrum functionality if available
-        if hasattr(self.cube, 'compute_power_spectrum'):
-            return self.cube.compute_power_spectrum(field)
-        else:
-            # Basic power spectrum calculation
-            field_k = jnp.fft.fftn(field)
-            power_3d = jnp.abs(field_k)**2
-            
-            # Spherically average (simplified)
-            kx, ky, kz = self.get_k_grids()
-            k_mag = jnp.sqrt(kx**2 + ky**2 + kz**2)
-            
-            # This is a simplified version - full implementation would do proper binning
-            k_fundamental = 2 * jnp.pi / self.Lbox
-            k_max = k_fundamental * self.N / 2
-            k_bins = jnp.linspace(0, k_max, 50)
-            
-            return k_bins[:-1], jnp.ones_like(k_bins[:-1])  # Placeholder
+        # Basic power spectrum calculation using JAX
+        field_k = jnp.fft.fftn(field)
+        power_3d = jnp.abs(field_k)**2
+        
+        # Create k-magnitude grid
+        kx, ky, kz = core.create_k_grids_full(self.N, self.Lbox)
+        k_mag = jnp.sqrt(kx**2 + ky**2 + kz**2)
+        
+        # Simplified binning for power spectrum
+        k_fundamental = 2 * jnp.pi / self.Lbox
+        k_max = k_fundamental * self.N / 2
+        k_bins = jnp.linspace(k_fundamental, k_max, 20)
+        
+        # Simple averaging (placeholder - could be improved)
+        pk_avg = jnp.ones_like(k_bins[:-1]) * jnp.mean(power_3d)
+        
+        return k_bins[:-1], pk_avg
     
-    # Expose cube methods for backward compatibility
-    def __getattr__(self, name):
-        """Delegate unknown attributes to the underlying cube."""
-        if hasattr(self.cube, name):
-            return getattr(self.cube, name)
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+    # Backward compatibility: expose some legacy-style attributes
+    @property
+    def delta(self):
+        """Density field (legacy compatibility)."""
+        return self._delta
+    
+    @delta.setter 
+    def delta(self, value):
+        self._delta = value
