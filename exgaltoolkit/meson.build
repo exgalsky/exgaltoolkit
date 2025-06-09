@@ -30,9 +30,4 @@ py.install_sources(
 
 # Use subdirs for utility modules
 subdir('util')
-subdir('mathutil')
 subdir('data')
-
-# Legacy modules (restored for compatibility)
-subdir('lpt')
-subdir('mockgen')

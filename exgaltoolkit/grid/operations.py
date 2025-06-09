@@ -49,10 +49,11 @@ class GridOperations:
             raise ValueError("Must generate noise before applying transfer function")
         
         # Apply power spectrum transfer function
-        self.delta = core.apply_power_spectrum_transfer(
+        self.delta = core.noise2delta(
             noise_field=self.delta,
-            power_spectrum=cosmology_service.pspec,
-            box_size=self.Lbox
+            cosmo_pspec=cosmology_service.pspec,
+            N=self.N,
+            Lbox=self.Lbox
         )
         return self
     
