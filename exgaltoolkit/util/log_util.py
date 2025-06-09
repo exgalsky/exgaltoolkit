@@ -68,28 +68,53 @@ def parprint(*args,**kwargs):
     print("".join(map(str,args)),**kwargs);  sys.stdout.flush()
 
 def profiletime(task_tag, step, times, comm=None, mpiproc=0):
+    """
+    Profile and print timing for a specific step.
+    
+    Parameters:
+    -----------
+    task_tag : str or None
+        Task identifier for custom messaging
+    step : str
+        Name of the step being timed
+    times : dict
+        Dictionary to store timing data
+    comm : MPI communicator or None
+        MPI communicator for synchronization
+    mpiproc : int
+        MPI process rank (only rank 0 prints output)
+        
+    Returns:
+    --------
+    times : dict
+        Updated timing dictionary
+    """
     from time import time
     if comm is not None:
         comm.Barrier()
 
-    stepn=step+'_N'
+    stepn = step + '_N'
     dt = time() - times['t0']
+    
     if step in times.keys():
-        times[step]  += dt
+        times[step] += dt
         times[stepn] += 1
     else:
-        times[step]  = dt
+        times[step] = dt
         times[stepn] = 1
+    
     times['t0'] = time()
 
-    if mpiproc!=0:
+    if mpiproc != 0:
         return times
 
+    # Format step output with consistent styling
     if task_tag is not None:
-        parprint(f'{task_tag}: {dt:.6f} sec for iteration {times[stepn]} {step}')
+        parprint(f'⏱️  {task_tag}: {dt:.3f}s (iteration {times[stepn]}, {step})')
     else:
-        parprint(f'{dt:.6f} sec for {step}')
-    #parprint("")
+        # Format step name for better readability
+        formatted_step = step.replace('_', ' ').replace('computation', '').strip().title()
+        parprint(f'⏱️  {formatted_step}: {dt:.3f}s')
 
     return times
 
@@ -97,18 +122,52 @@ def _sortdict(dictin,reverse=False):
     return dict(sorted(dictin.items(), key=lambda item: item[1], reverse=reverse))
 
 def summarizetime(task_tag, times, comm=None, mpiproc=0):
+    """
+    Print a formatted summary of timing information.
+    
+    Parameters:
+    -----------
+    task_tag : str or None
+        Task identifier (not used in current implementation)
+    times : dict
+        Dictionary containing timing data with keys for each step and '_N' suffix for counts
+    comm : MPI communicator or None
+        MPI communicator for synchronization
+    mpiproc : int
+        MPI process rank (only rank 0 prints output)
+    """
     total_time = 0
 
     if comm is not None:
         comm.Barrier()
-    if mpiproc!=0:
+    if mpiproc != 0:
         return times
 
-    parprint('\nTime summary:')
-    for key in _sortdict(times,reverse=True).keys():
+    # Calculate total time and format output
+    step_times = []
+    for key in times.keys():
         if key != 't0' and key[-2:] != '_N':
-            N = times[key+'_N']
-            dtbar = times[key]/N
-            parprint(f'  {dtbar:.5e} per {N} iterations of {key}')
-            total_time += times[key]
-    parprint(f'\n  {total_time:.5e} all steps')
+            if key + '_N' in times:
+                N = times[key + '_N']
+                step_time = times[key]
+                total_time += step_time
+                
+                # Format step name for better readability
+                formatted_key = key.replace('_', ' ').title()
+                step_times.append((formatted_key, step_time, N))
+
+    # Sort by time (longest first)
+    step_times.sort(key=lambda x: x[1], reverse=True)
+
+    # Print formatted timing summary
+    print(f"\n📊 Timing Summary:")
+    print(f"   {'Step':<25} {'Time (s)':<10} {'Avg/Iter':<12}")
+    print(f"   {'-'*25} {'-'*10} {'-'*12}")
+    
+    for step_name, step_time, iterations in step_times:
+        avg_time = step_time / iterations if iterations > 0 else step_time
+        print(f"   {step_name:<25} {step_time:>8.3f}s   {avg_time:>8.3f}s")
+    
+    print(f"   {'-'*25} {'-'*10} {'-'*12}")
+    print(f"   {'Total Runtime':<25} {total_time:>8.3f}s")
+    print()
