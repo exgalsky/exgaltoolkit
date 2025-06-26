@@ -204,6 +204,12 @@ class ModernGridOperations:
         # Apply transfer function in k-space
         self.delta = self._apply_transfer_function(self.delta, k_1d, transfer_1d)
         
+        # Ensure zero mean by removing k=0 mode
+        delta_k = self._fft(self.delta, direction='r2c')
+        # Set k=0 mode to zero to ensure zero mean density field
+        delta_k = delta_k.at[0, 0, 0].set(0.0 + 0.0j)
+        self.delta = self._fft(delta_k, direction='c2r')
+        
         return self
     
     def _apply_transfer_function(self, field: jnp.ndarray, k_1d: jnp.ndarray, 
@@ -234,7 +240,7 @@ class ModernGridOperations:
         k_mag = jnp.sqrt(self.k_square(kx, ky, kz)).ravel()
         
         # Interpolate to k-grid
-        f_3d = jnp.interp(k_mag, k_1d, f_1d, left=0.0, right=0.0)
+        f_3d = jnp.interp(k_mag, k_1d, f_1d, left='extrapolate', right='extrapolate')
         
         # Reshape to grid
         if self.partype == 'jaxshard':
@@ -342,8 +348,8 @@ class ModernGridOperations:
         s_k = (1j) * ki * delta_k / jnp.where(k_zero_mask, 1.0, k2)
         
         # Set k=0 mode to zero (no monopole displacement)
-        if self.host_id == 0:
-            s_k = jnp.where(k_zero_mask, 0.0 + 0.0j, s_k)
+        # This should always be applied, not just on host_id == 0
+        s_k = jnp.where(k_zero_mask, 0.0 + 0.0j, s_k)
         
         # Transform back to real space
         s_real = self._fft(s_k, direction='c2r')

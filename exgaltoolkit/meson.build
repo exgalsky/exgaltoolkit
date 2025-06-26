@@ -14,12 +14,12 @@ py.install_sources(
 
 # Install core API modules
 py.install_sources(
-  ['cosmology/__init__.py', 'cosmology/parameters.py', 'cosmology/growth.py'],
+  ['cosmology/__init__.py', 'cosmology/parameters.py', 'cosmology/growth.py', 'cosmology/modern_service.py'],
   subdir: 'exgaltoolkit/cosmology'
 )
 
 py.install_sources(
-  ['grid/__init__.py', 'grid/operations.py', 'grid/lpt.py'],
+  ['grid/__init__.py', 'grid/operations.py', 'grid/modern_operations.py', 'grid/lpt.py'],
   subdir: 'exgaltoolkit/grid'
 )
 

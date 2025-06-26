@@ -18,7 +18,7 @@ class LPTCalculator:
         
         Parameters:
         -----------
-        grid_ops : GridOperations
+        grid_ops : ModernGridOperations
             Grid operations instance
         order : int
             LPT order (1 or 2)

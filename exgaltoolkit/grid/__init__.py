@@ -2,7 +2,7 @@
 Grid operations module for grid generation, FFTs, and LPT calculations.
 """
 
-from .operations import GridOperations
+from .modern_operations import ModernGridOperations as GridOperations
 from .lpt import LPTCalculator
 
 __all__ = [
