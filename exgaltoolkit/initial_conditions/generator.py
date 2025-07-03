@@ -55,22 +55,7 @@ class ICGenerator:
         self.z_initial = z_initial
         self.output_dir = output_dir
         
-        # Set up cosmology
-        if cosmology is None:
-            cosmology = CosmologicalParameters()
-        
-        # Generate power spectrum using CAMB if possible
-        power_spectrum = kwargs.get('power_spectrum', None)
-        if power_spectrum is None:
-            power_spectrum = self._generate_camb_power_spectrum(cosmology, z_initial)
-        
-        self.cosmology_service = CosmologyService(cosmology, power_spectrum)
-        
-        # Set up grid operations
-        self.grid_ops = GridOperations(N=N, Lbox=Lbox, **kwargs)
-        self.lpt_calc = LPTCalculator(self.grid_ops, order=lpt_order)
-        
-        # Set up MPI if available
+        # Set up MPI if available (must be done before JAX operations)
         try:
             from mpi4py import MPI
             self.comm = MPI.COMM_WORLD
@@ -83,6 +68,19 @@ class ICGenerator:
             self.nproc = 1
             self.parallel = False
         
+        # Note: Distributed JAX initialization should happen before importing exgaltoolkit
+        # in distributed mode. The ICGenerator assumes JAX is already properly initialized.
+        
+        # Store parameters for deferred initialization
+        self.cosmology = cosmology
+        self.power_spectrum = kwargs.get('power_spectrum', None)
+        self.grid_kwargs = kwargs
+        
+        # Initialize JAX-dependent objects as None (will be created on first use)
+        self.cosmology_service = None
+        self.grid_ops = None
+        self.lpt_calc = None
+        
         # Track state
         self._noise_generated = False
         self._delta_computed = False
@@ -91,6 +89,24 @@ class ICGenerator:
         # Results
         self.particle_positions = None
         self.particle_velocities = None
+    
+    def _ensure_initialized(self):
+        """Ensure JAX-dependent objects are initialized."""
+        if self.cosmology_service is None:
+            # Set up cosmology
+            if self.cosmology is None:
+                self.cosmology = CosmologicalParameters()
+            
+            # Generate power spectrum using CAMB if possible
+            if self.power_spectrum is None:
+                self.power_spectrum = self._generate_camb_power_spectrum(self.cosmology, self.z_initial)
+            
+            self.cosmology_service = CosmologyService(self.cosmology, self.power_spectrum)
+        
+        if self.grid_ops is None:
+            # Set up grid operations
+            self.grid_ops = GridOperations(N=self.N, Lbox=self.Lbox, **self.grid_kwargs)
+            self.lpt_calc = LPTCalculator(self.grid_ops, order=self.lpt_order)
     
     def generate_initial_conditions(self, 
                                    save_output: bool = True,
@@ -121,9 +137,8 @@ class ICGenerator:
         
         times = {'t0': time()}
         
-        # Initialize distributed computing if needed
-        if self.parallel:
-            ju.distributed_initialize()
+        # Ensure JAX-dependent objects are initialized
+        self._ensure_initialized()
         
         results = {}
         
@@ -326,10 +341,12 @@ class ICGenerator:
     # Getter methods for results
     def get_density_field(self):
         """Get the density contrast field."""
+        self._ensure_initialized()
         return self.grid_ops.get_density_field()
     
     def get_displacement_fields(self):
         """Get LPT displacement fields (only returns components based on LPT order)."""
+        self._ensure_initialized()
         all_displacements = self.grid_ops.get_displacement_fields()
         # Return only the appropriate number of components based on LPT order
         if self.lpt_order == 1:
