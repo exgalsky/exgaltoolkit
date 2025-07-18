@@ -155,6 +155,7 @@ class ICGenerator:
                 results['noise_generated'] = True
             
             # Step 2: Convolve to get density field
+            print('SHAPE BEFORE',self.grid_ops.delta.shape)
             if 'delta' in steps and self._noise_generated:
                 if self.mpiproc == 0:
                     xglogutil.parprint('Computing density field from noise')
@@ -164,6 +165,7 @@ class ICGenerator:
                                        logging_level=-logging.ERROR)
                 
                 self.grid_ops.convolve_with_transfer_function(self.cosmology_service)
+                print('SHAPE AFTER',self.grid_ops.delta.shape)
                 self._delta_computed = True
                 times = xglogutil.profiletime(None, 'density field computation', times, self.comm, self.mpiproc)
                 

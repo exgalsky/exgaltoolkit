@@ -49,11 +49,29 @@ class GridOperations:
             raise ValueError("Must generate noise before applying transfer function")
         
         # Apply power spectrum transfer function
+        # Determine distributed parameters from stored partype
+        if self.partype == 'jaxshard':
+            import jax
+            ngpus = jax.process_count() if jax.process_count() > 1 else 1
+            host_id = jax.process_index()
+            start = host_id * self.N // ngpus
+            end = (host_id + 1) * self.N // ngpus
+        else:
+            ngpus = 1
+            host_id = 0
+            start = 0
+            end = self.N
+            
         self.delta = core.noise2delta(
             noise_field=self.delta,
             cosmo_pspec=cosmology_service.pspec,
             N=self.N,
-            Lbox=self.Lbox
+            Lbox=self.Lbox,
+            partype=self.partype,
+            host_id=host_id,
+            ngpus=ngpus,
+            start=start,
+            end=end
         )
         return self
     

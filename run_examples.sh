@@ -19,6 +19,6 @@ else
     -A cosmosim \
     --gpus-per-node=4 \
     --exclusive \
-    python ./examples/minimal_example_serial_newapi.py |& tee examplelog
+    python ./examples/minimal_example_newapi.py |& tee examplelog
 fi
 

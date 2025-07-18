@@ -10,6 +10,7 @@ import gc
 
 # Import JAX-native core functions
 from .. import core
+from ..core.transfers import _distributed_fft
 
 # Will replace this with pure JAX implementation
 # import exgaltoolkit.lpt as lpt
@@ -79,7 +80,7 @@ class ModernGridOperations:
             self.end = self.N
             self.rshape_local = self.rshape
             self.cshape_local = self.cshape
-    
+        print(self.ngpus,self.host_id,self.partype,jax.local_device_count(),self.rshape_local,self.cshape_local)    
     def k_axis(self, r: bool = False, slab_axis: bool = False) -> jnp.ndarray:
         """
         Generate k-space frequency grid.
@@ -282,14 +283,24 @@ class ModernGridOperations:
     
     def _fft_distributed(self, field: jnp.ndarray, direction: str) -> jnp.ndarray:
         """
-        Distributed FFT using JAX experimental features.
+        Distributed FFT using JAX sharding.
         
-        TODO: Implement using jax.experimental.multihost_utils
-        For now, fall back to serial FFT
+        Uses the real distributed FFT implementation with proper Y-slab decomposition.
         """
-        # Placeholder: Use serial FFT for now
-        # In full implementation, this would use JAX distributed FFT
-        return self._fft_serial(field, direction)
+        # Get number of processes for distributed computation
+        ngpus = jax.process_count()
+        
+        if ngpus <= 1:
+            print(f"⚠️  ModernGridOperations: partype='jaxshard' but only {ngpus} process, using serial FFT")
+            return self._fft_serial(field, direction)
+            
+        print(f"⚡ ModernGridOperations: Using distributed FFT with {ngpus} processes for {direction} operation")
+        
+        # Call the real distributed FFT implementation
+        result = _distributed_fft(field, direction, ngpus)
+        
+        print(f"✅ ModernGridOperations: Distributed FFT complete, result shape {result.shape}")
+        return result
     
     def compute_lpt_displacements(self, order: int = 2, input_mode: str = 'noise') -> 'ModernGridOperations':
         """
@@ -311,7 +322,13 @@ class ModernGridOperations:
             return self
         
         # Setup k-space grids using 3D meshgrids for proper broadcasting
-        kx, ky, kz = core.create_k_grids_3d(self.N, self.Lbox)
+        if self.partype == 'jaxshard':
+            # For distributed execution, create local k-grids matching the local slab
+            distributed_slice = slice(self.start, self.end)
+            kx, ky, kz = core.create_k_grids_3d(self.N, self.Lbox, distributed_slice=distributed_slice)
+        else:
+            # For serial execution, create full k-grids
+            kx, ky, kz = core.create_k_grids_3d(self.N, self.Lbox)
         
         # Compute k² from 3D grids
         k2 = kx**2 + ky**2 + kz**2
