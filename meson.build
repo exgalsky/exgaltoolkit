@@ -46,8 +46,4 @@ py3.install_sources(py_sources,
   subdir: 'exgaltoolkit',
 )
 
-subdir('exgaltoolkit/util')
-subdir('exgaltoolkit/mathutil')
-subdir('exgaltoolkit/mockgen')
-subdir('exgaltoolkit/lpt')
-subdir('exgaltoolkit/data')
+subdir('exgaltoolkit')
